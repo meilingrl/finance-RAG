@@ -1,0 +1,139 @@
+"""Durable single-slot job persistence; workers never receive credentials in argv."""
+import contextlib,fcntl,hashlib,json,os,subprocess,threading,time
+from pathlib import Path
+from datetime import datetime,timezone
+from uuid import uuid4
+from formal_src.contracts import RunSnapshot,RunEvent,uuid
+
+def now(): return datetime.now(timezone.utc).isoformat()
+def digest(value): return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+def read(path,default=None): return json.loads(path.read_text()) if path.exists() else default
+def atomic(path,value):
+ path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
+ tmp=path.with_name(path.name+'.'+str(uuid4())+'.tmp')
+ with tmp.open('w') as f: json.dump(value,f,allow_nan=False);f.flush();os.fsync(f.fileno())
+ os.replace(tmp,path)
+class JobStore:
+ def __init__(self,workspace):
+  self.root=Path(workspace);self.root.mkdir(parents=True,exist_ok=True);self.runs=self.root/'runs';self.runs.mkdir(exist_ok=True);self._guard=threading.RLock();self._local=threading.local()
+ @contextlib.contextmanager
+ def lock(self):
+  with self._guard:
+   if getattr(self._local,'locked',False):
+    yield
+    return
+   with (self.root/'jobs.lock').open('a') as f:
+    fcntl.flock(f,fcntl.LOCK_EX);self._local.locked=True
+    try: yield
+    finally:
+     self._local.locked=False;fcntl.flock(f,fcntl.LOCK_UN)
+ def directory(self,run_id): uuid(run_id);return self.runs/run_id
+ def get(self,run_id): return RunSnapshot.from_dict(read(self.directory(run_id)/'state.json'))
+ def update(self,run_id,**values):
+  with self.lock():
+   d=self.get(run_id).to_dict();d.update(values,updated_at=now());d=RunSnapshot.from_dict(d);atomic(self.directory(run_id)/'state.json',d);return d
+ def events(self,run_id,after_seq=0):
+  if type(after_seq)!=int or after_seq<0: raise ValueError('Invalid event cursor')
+  p=self.directory(run_id)/'events.jsonl'
+  return [RunEvent.from_dict(json.loads(line)) for line in p.read_text().splitlines() if line and json.loads(line)['seq']>after_seq] if p.exists() else []
+ def emit(self,run_id,event):
+  with self.lock():
+   s=self.get(run_id);existing=self.events(run_id);e=RunEvent.from_dict(dict(schema_version=1,run_id=run_id,seq=(existing[-1]['seq'] if existing else 0)+1,time=now(),phase=event.get('phase',s['phase']),event_type=event['event_type'],counts=event.get('counts',{}),error_code=event.get('error_code')))
+   with (self.directory(run_id)/'events.jsonl').open('a') as f: f.write(json.dumps(e)+'\n');f.flush();os.fsync(f.fileno())
+   counts={k:v for k,v in e['counts'].items() if k in s};self.update(run_id,last_event_seq=e['seq'],phase=e['phase'],**counts)
+ def register(self,request,spec,blocking):
+  with self.lock():
+   for p in self.runs.glob('*/spec.json'):
+    if read(p)['client_request_id']==request['client_request_id']: return self.get(p.parent.name),False
+   active=[read(p) for p in self.runs.glob('*/state.json') if read(p)['state'] in ('queued','running','pause_requested','cancel_requested','validating')]
+   if active: blocking=list(blocking)+['execution_slot_busy']
+   rid=spec['run_id'];t=now();d=dict(schema_version=1,run_id=rid,kind=request['kind'],purpose=spec['purpose'],state='blocked' if blocking else 'queued',phase='prepare',profile_hash=digest(spec['resolved_config']),logical_generation_count=spec['logical_generation_count'],completed_logical_count=0,in_flight_count=0,attempt_count=0,failure_count=0,abstention_count=0,usage={'cost':None},last_event_seq=0,available_actions=['inspect'] if blocking else ['cancel'],created_at=t,updated_at=t,blocking_items=blocking,audit_complete=False)
+   atomic(self.directory(rid)/'spec.json',spec);atomic(self.directory(rid)/'state.json',RunSnapshot.from_dict(d))
+   atomic(self.directory(rid)/'integrity.json',{'spec_sha':digest(spec)})
+   return self.get(rid),True
+ def start(self,run_id,command,secret=None,*,expected_updated_at=None,inputs=None):
+  directory=self.directory(run_id)
+  with self.lock():
+   current=self.get(run_id)
+   if expected_updated_at is not None and current['updated_at']!=expected_updated_at:return current
+   if current['state'] not in ('queued','blocked','paused','interrupted'):return current
+   previous=read(directory/'process.json',{})
+   if self._alive(previous.get('pid')):return current
+   for path in self.runs.glob('*/state.json'):
+    other=read(path)
+    if other['run_id']!=run_id and other['state'] in ('queued','running','pause_requested','cancel_requested','validating'):
+     return self.update(run_id,state='blocked',blocking_items=['execution_slot_busy'])
+   if inputs is not None:
+    target=directory/'inputs.json'
+    if target.exists() and digest(read(target))!=digest(inputs):return self.update(run_id,state='blocked',blocking_items=['inference_projection_changed'])
+    if not target.exists():atomic(target,inputs)
+   atomic(directory/'control.json',{'action':'continue'})
+   env=os.environ.copy()
+   if secret: env['FORMAL_API_KEY']=secret
+   else: env.pop('FORMAL_API_KEY',None)
+   # A prior worker-result must never mark a resumed process complete.
+   for name in ('worker-result.json','heartbeat.json'):
+    (directory/name).unlink(missing_ok=True)
+   consumed=len(self.events(run_id))
+   try:
+    process=subprocess.Popen(list(command)+['--run-dir',str(directory)],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+   except OSError:
+    return self.update(run_id,state='blocked',blocking_items=['kernel_start_failed'])
+   atomic(directory/'process.json',{'pid':process.pid,'started_at':now()})
+   self.update(run_id,state='running',available_actions=['pause','cancel'],blocking_items=[])
+  self._monitor(run_id,process.pid,process,consumed)
+ def _monitor(self,run_id,pid,process=None,consumed=None):
+  directory=self.directory(run_id)
+  def monitor():
+   # Per-run monitor lock allows a restarted HTTP service to adopt its live worker.
+   with (directory/'monitor.lock').open('a') as lock:
+    try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:
+     if process is None:return
+     fcntl.flock(lock,fcntl.LOCK_EX)
+    offset=len(self.events(run_id)) if consumed is None else consumed
+    try:
+     while True:
+      p=directory/'worker-events.jsonl'
+      raw=p.read_text() if p.exists() else ''
+      lines=raw.splitlines() if raw.endswith('\n') else raw.splitlines()[:-1]
+      for line in lines[offset:]:self.emit(run_id,json.loads(line));offset+=1
+      atomic(directory/'heartbeat.json',{'pid':pid,'time':now()})
+      alive=process.poll() is None if process is not None else self._alive(pid)
+      if not alive:break
+      time.sleep(.03)
+     result=read(directory/'worker-result.json',{})
+     state=result.get('state','interrupted')
+     if state not in ('completed','paused','cancelled','blocked','failed','interrupted'):state='failed'
+     snapshot=self.get(run_id)
+     if state in ('paused','cancelled','completed') and snapshot['in_flight_count']:state='interrupted'
+     checks=read(directory/'integrity.json',{})
+     checks['outputs']={name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ('predictions.jsonl','tasks.jsonl','retrieval.jsonl','summary.json','results.csv','attempts.jsonl','inputs.json') if (directory/name).is_file()}
+     atomic(directory/'integrity.json',checks)
+     self.update(run_id,state=state,available_actions=['resume','inspect'] if state in ('paused','interrupted','blocked') else ['inspect'],blocking_items=result.get('blocking_items',[]))
+    except Exception:
+     self.update(run_id,state='failed',blocking_items=['invalid_worker_output'])
+  threading.Thread(target=monitor,daemon=True).start()
+ @staticmethod
+ def _alive(pid):
+  try:
+   if not pid:return False
+   os.kill(pid,0);return True
+  except ProcessLookupError:return False
+ def recover(self):
+  for p in self.runs.glob('*/state.json'):
+   s=read(p)
+   if s['state'] not in ('running','queued','pause_requested','cancel_requested','validating'):continue
+   proc=read(p.parent/'process.json',{});pid=proc.get('pid')
+   if self._alive(pid):self._monitor(s['run_id'],pid)
+   else:self.update(s['run_id'],state='interrupted',available_actions=['resume','inspect'])
+ def resume_checks(self,run_id):
+  d=self.directory(run_id);spec=read(d/'spec.json');checks=read(d/'integrity.json',{})
+  if digest(spec)!=checks.get('spec_sha'):return ['saved_spec_changed']
+  records=[json.loads(l) for l in (d/'attempts.jsonl').read_text().splitlines()] if (d/'attempts.jsonl').exists() else []
+  latest={r['attempt_id']:r for r in records}
+  if any(r.get('state') in ('sent','unknown') for r in latest.values()):return ['unknown_attempt_requires_inspection']
+  for path,sha in checks.get('outputs',{}).items():
+   target=(d/path).resolve()
+   if not target.is_relative_to(d.resolve()) or not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest()!=sha:return ['saved_output_changed']
+  return []

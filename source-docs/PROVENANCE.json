@@ -1,0 +1,15 @@
+{
+  "source_method": "Full plan Markdown text and visible course assignment text retrieved from the authorized original computer and copied here. Original Library transfer failed DNS; no original files modified.",
+  "assignment_format_note": "course-assignment-extracted.txt contains visible text only; original HTML styling/scripts omitted. Not a byte-identical HTML copy.",
+  "scope_override": "Latest user request selected dot cloud computer, authorized these source-document copies, and deferred large models in favor of infrastructure.",
+  "files": [
+    {
+      "path": "source-docs/2026-10-14-financial-rag-feasibility.md",
+      "sha256": "37e2d7fc934c3947d6821cb54fecda994c13289bf315103f284647b6049728ce"
+    },
+    {
+      "path": "source-docs/course-assignment-extracted.txt",
+      "sha256": "06c0e94363a2ac6f39e536357952b84a00c0fcc94d1e8144430ee4ec7a1f5966"
+    }
+  ]
+}

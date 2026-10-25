@@ -1,0 +1,36 @@
+{
+  "purpose": "Course submission only; distinct from the private engineering snapshot",
+  "max_archive_bytes": 50000000,
+  "source_patterns": [
+    "README.md",
+    "requirements*.txt",
+    "src/**/*.py",
+    "formal_src/**/*.py",
+    "app/**/*.py",
+    "web/*.html",
+    "web/*.css",
+    "web/*.js",
+    "scripts/*.py",
+    "tests/**/*.py",
+    "formal_config/*.json",
+    "config*.example.*",
+    "docs/APP_GUIDE.md",
+    "docs/COURSE_SUBMISSION_MANIFEST.json",
+    "docs/COURSE_README.md"
+  ],
+  "required_documents": [
+    "course/报告.pdf",
+    "course/项目摘要.md",
+    "course/submission.json",
+    "course/AI使用声明.md",
+    "docs/COURSE_README.md",
+    "docs/APP_GUIDE.md"
+  ],
+  "submission_fields": [
+    "leader_id",
+    "leader_name",
+    "project_name",
+    "members"
+  ],
+  "resource_policy": "No datasets, full requests, gold, weights, videos, virtual environments or credentials. External resources are referenced by content SHA."
+}

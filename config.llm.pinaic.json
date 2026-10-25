@@ -1,0 +1,13 @@
+{
+  "endpoint": "https://api.pinaic.com/v1/responses",
+  "wire_api": "responses",
+  "stream": true,
+  "model": "gpt-6-luna",
+  "api_key_env": "OPENAI_API_KEY",
+  "max_completion_tokens": 512,
+  "reasoning_effort": "none",
+  "reserve_input_tokens": 32768,
+  "input_usd_per_million": null,
+  "output_usd_per_million": null,
+  "timeout_seconds": 60
+}

@@ -1,0 +1,7 @@
+{
+  "retriever": "bm25",
+  "tokenizer": "finance",
+  "k": 2,
+  "k1": 1.5,
+  "b": 0.75
+}

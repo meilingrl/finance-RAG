@@ -1,0 +1,11 @@
+{
+  "endpoint": "https://api.openai.com/v1/chat/completions",
+  "model": "gpt-6-luna",
+  "api_key_env": "OPENAI_API_KEY",
+  "max_completion_tokens": 512,
+  "reasoning_effort": "none",
+  "reserve_input_tokens": 32768,
+  "input_usd_per_million": 0.10,
+  "output_usd_per_million": 0.50,
+  "timeout_seconds": 60
+}

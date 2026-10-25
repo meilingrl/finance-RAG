@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "profile_id": "formal-v1",
+  "status": "draft",
+  "purpose": "formal",
+  "cohort_sizes": {"development": 50, "validation": 50, "main": 200, "diagnostic": 50, "s50": 50},
+  "retrievers": ["bm25", "minilm"],
+  "core_conditions": ["E1", "E1_legacy", "E2", "E3", "E4"],
+  "auxiliary_conditions": ["D", "L", "G", "I", "C0", "C1", "E2_k1", "E2_k4", "E2_no_association", "M2_E2", "M2_E3", "M2_E4"],
+  "k": 2,
+  "repeats": 3,
+  "seed": 20261023,
+  "models": {"primary": null, "secondary": null},
+  "provider": null,
+  "prompt_sha": null,
+  "resource_manifest_sha": null,
+  "freeze_sha": null,
+  "metrics": {"primary": "UEM", "parallel": ["EM", "F1"], "round_aggregation": "per_question_mean", "bootstrap_unit": "source_cluster", "bootstrap_replicates": 10000, "main_comparisons": 4, "confidence_level": 0.9875},
+  "budgets": {"formal_logical_generations": 6600, "development_validation_attempts": 500, "retry_demo_attempts": 900, "new_stage_attempts": 8000, "legacy_attempts": 185},
+  "readiness": {"cohorts_verified": false, "models_verified": false, "resources_verified": false, "human_reviews_complete": false}
+}

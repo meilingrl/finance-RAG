@@ -1,0 +1,21 @@
+.local-secrets/
+.env
+.env.*
+config.llm.local.json
+__pycache__/
+*.pyc
+
+# Local runtime for the software shell (never a course artifact).
+.venv-app/
+.venv-app-clean/
+
+# Local datasets, model weights, experiment runs and diagnostic backups.
+/data/
+/artifacts/
+.venv/
+.venv-*/
+.envrc
+.DS_Store
+*.log
+*.pem
+*.key
