@@ -105,4 +105,41 @@ class EntrySealAndPreparedTests(EntryAdditionalTests):
    self.assertEqual(response.status_code,200);self.assertEqual([r['question_id'] for r in response.json()],['q'])
    self.assertEqual(client.get('/api/v1/resources/demo/evidence/test-doc').status_code,403)
 
+class CropRouteTests(unittest.TestCase):
+ # Catch rejection of canonical colon-separated IDs without weakening file binding.
+ def fixture(self, root, image_path='crops/evidence.png', bound=True):
+  data=root/'data';data.mkdir();image=data/image_path
+  image.parent.mkdir(parents=True,exist_ok=True)
+  import base64
+  content=base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=')
+  image.write_bytes(content)
+  records={'inference_questions.jsonl':[dict(question_id='q',doc_id='d',question='Synthetic development question',split='development'),dict(question_id='hidden',doc_id='test-doc',question='Hidden fixture',split='main')],
+           'evidence_units.jsonl':[dict(evidence_id='d:p1:u000',doc_id='d',text='Synthetic evidence',image_path=image_path)]}
+  bindings=[]
+  for name,rows in records.items():
+   path=data/name;path.write_text(''.join(json.dumps(row)+'\n' for row in rows));bindings.append(dict(kind='input',path=name,sha256=hashlib.sha256(path.read_bytes()).hexdigest()))
+  if bound:bindings.append(dict(kind='input',path=image_path,sha256=hashlib.sha256(content).hexdigest()))
+  (data/'resources.json').write_text(json.dumps(dict(schema_version=1,resource_set_id='demo',purpose='demo',resources=bindings)))
+  app=importlib.import_module('scripts.course_entry').build_app(ROOT,root/'work');app.state.service.register_resources(data)
+  return TestClient(app),image,content
+ def test_canonical_evidence_url_serves_bound_crop(self):
+  with tempfile.TemporaryDirectory() as td:
+   client,image,content=self.fixture(Path(td))
+   url=client.get('/api/v1/resources/demo/evidence/d').json()[0]['image_url']
+   response=client.get(url)
+   self.assertEqual(response.status_code,200,response.text)
+   self.assertEqual(response.headers['content-type'],'image/png');self.assertEqual(response.content,content)
+ def test_crops_remain_development_only_and_manifest_bound(self):
+  with tempfile.TemporaryDirectory() as td:
+   client,image,_=self.fixture(Path(td))
+   self.assertEqual(client.get('/api/v1/resources/demo/crop/test-doc/d:p1:u000').status_code,403)
+   self.assertEqual(client.get('/api/v1/resources/demo/crop/d/unknown:p1:u000').status_code,404)
+   image.write_bytes(b'tampered')
+   self.assertEqual(client.get('/api/v1/resources/demo/crop/d/d:p1:u000').status_code,409)
+ def test_unregistered_images_and_parent_paths_are_not_served(self):
+  for path in ('crops/evidence.png','../outside.png'):
+   with self.subTest(path=path),tempfile.TemporaryDirectory() as td:
+    client,_,_=self.fixture(Path(td),image_path=path,bound=False)
+    self.assertEqual(client.get('/api/v1/resources/demo/crop/d/d:p1:u000').status_code,404)
+
 if __name__=='__main__':unittest.main()

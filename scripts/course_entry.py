@@ -78,7 +78,8 @@ def build_app(project_root=ROOT, workspace=None):
 
     @app.get('/api/v1/resources/{rid}/crop/{doc_id}/{evidence_id}')
     def crop(rid: str, doc_id: str, evidence_id: str):
-        identifier(evidence_id)
+        # Evidence IDs are manifest keys (including colons), never file paths.
+        identifier(doc_id)
         if doc_id not in {q['doc_id'] for q in examples(rid)}:
             raise HTTPException(403, 'Development documents only')
         units = [r for r in inputs(rid, 'evidence_units.jsonl') if r['doc_id'] == doc_id and r['evidence_id'] == evidence_id]

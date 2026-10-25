@@ -129,3 +129,7 @@ python src/pilot.py score-frozen \
 - 小样本结果、非官方评分、未执行的大模型组不能支持课程验收或普遍效果结论。
 
 完整过程中的开发修复、核验范围和盲审警告见 docs/NONLLM_ENGINEERING_LOG.md、artifacts/phase2-visual-review/、artifacts/nonllm-phase2/independent-audit/。
+
+## 本地版本管理
+
+项目根目录使用 Git 管理源码、测试、配置样例和文档。用 `git status` 查看改动，`git log --oneline` 查看历史，`git diff` 比较未提交改动。密钥、数据、权重、虚拟环境和实验输出由 `.gitignore` 排除，须另行保留；不使用 `git add -f` 将它们加入版本库。当前版本与导入边界见 [状态主记录](PILOT_STATUS.md)。
