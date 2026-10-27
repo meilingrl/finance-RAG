@@ -1,5 +1,11 @@
 # 财报证据问答软件与实验
 
+当前入口：已完成 200 题主测试集，聚合结果见[主集结果](docs/MAIN_RESULTS.md)；报告待补写见[课程报告](docs/course-report/README.md)。后续功能按当前时间补录入 Git，说明见[Git 历史与补录说明](docs/GIT_HISTORY.md)，本次验证见[验证记录](docs/VALIDATION_RECORD.md)。
+
+源码仓库不包含 `data/`、`artifacts/`、模型权重、虚拟环境或 API 密钥。新机器需按[应用指南](docs/APP_GUIDE.md)配置依赖与对应资源。下文带日期的内容为历史快照，未运行状态不代表当前主集状态；完整消融与第二模型仍未执行。
+
+## 历史实施记录
+
 2026-10-24 实施：已建立本机工作台、统一CLI/HTTP服务、持久任务、完整矩阵执行器与独立复核/课程导出。当前先完成软件；真实正式实验尚未冻结，人工审核保留待办。启动与配置见 [软件使用说明](docs/APP_GUIDE.md)，实现/验证状态见 [当前状态](PILOT_STATUS.md)。
 
 ```sh
@@ -8,9 +14,9 @@ python3.12 -m venv .venv
 .venv/bin/python scripts/course_entry.py
 ```
 
-正式研究的现行方案：[完整流程缩量方案](docs/FORMAL_EXPERIMENT_PLAN_SCALED_20261023.md)（只缩小题量，保留两检索器四组、三轮、全部消融／对照／第二模型及统计；第15节结合现有代码说明流程，正式运行尚未启动）。[原大规模方案](docs/FORMAL_LARGE_SCALE_EXPERIMENT_PLAN_20261023.md)及[保守收尾方案](docs/COURSE_PROJECT_PLAN_20261023.md)保留为历史记录。
+此前规划方案：[完整流程缩量方案](docs/FORMAL_EXPERIMENT_PLAN_SCALED_20261023.md)（只缩小题量，保留两检索器四组、三轮、全部消融／对照／第二模型及统计；第15节结合现有代码说明流程，正式运行尚未启动）。[原大规模方案](docs/FORMAL_LARGE_SCALE_EXPERIMENT_PLAN_20261023.md)及[保守收尾方案](docs/COURSE_PROJECT_PLAN_20261023.md)保留为历史记录。
 
-软件与实验共用内核的现行安排：[接口与分工设计](docs/SOFTWARE_KERNEL_DESIGN_20261024.md)、[实施计划](docs/superpowers/plans/2026-10-24-software-kernel.md)（本机界面、配置与资源、持久任务及同一内核；实验方案不变）。
+软件与实验共用内核的设计安排：[接口与分工设计](docs/SOFTWARE_KERNEL_DESIGN_20261024.md)、[实施计划](docs/superpowers/plans/2026-10-24-software-kernel.md)（本机界面、配置与资源、持久任务及同一内核；实验方案不变）。
 
 四组实验的集中阅读入口：[实验汇总报告](docs/EXPERIMENT_SUMMARY_20261023.md)（组别定义、统一分母、检索对比与诊断结论）。
 
