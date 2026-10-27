@@ -31,7 +31,7 @@ def build_payload(config,question,units,*,content=None):
  # Wire-size admission is independent of text context admission. Base64 is
  # transport encoding, not a model token estimate. Preserve original image
  # bytes/detail; image context admission depends on qualified profile evidence
- # and actual reported usage, never an invented pixel/token formula.
+ # not provider billing metadata or an invented pixel/token formula.
  wire_limit=config.get('max_request_bytes',MAX_REQUEST_BYTES)
  if type(wire_limit) is not int or not 1<=wire_limit<=MAX_REQUEST_BYTES:raise ProviderError('wire_budget_invalid')
  if len(json.dumps(payload,allow_nan=False).encode())>wire_limit:raise ProviderError('wire_budget_exceeded')
@@ -44,10 +44,8 @@ def build_payload(config,question,units,*,content=None):
 
 def validate_response(raw,model,selected_ids,max_output_tokens,reserve_input_tokens):
  if raw.get('model')!=model:raise ProviderError('model_mismatch')
- usage=raw.get('usage')
- if not isinstance(usage,dict):raise ProviderError('usage_missing')
- for key,limit in [('input_tokens',reserve_input_tokens),('output_tokens',max_output_tokens)]:
-  if type(usage.get(key)) is not int or not 0<=usage[key]<=limit:raise ProviderError('usage_invalid')
+ # Coursework accounting is request-count based; optional provider usage never gates answers.
+ usage={}
  parsed=parse_response(raw,selected_ids)
  if parsed['status']=='api_error':raise ProviderError('response_not_completed')
  return {**parsed,'usage':usage,'response_id':raw.get('id')}
