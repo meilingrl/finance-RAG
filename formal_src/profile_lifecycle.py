@@ -3,14 +3,15 @@ from __future__ import annotations
 from copy import deepcopy
 import re
 from .contracts import safe_json
+from .course_policy import automatic,readiness_valid
 from .run_plan import CANONICAL_PROFILE, content_sha
 
 DYNAMIC={'status','models','provider','prompt_sha','resource_manifest_sha','freeze_sha','readiness','code_sha','concurrency','audit_plan_sha256'}
 
 
 def validate_recipe(profile):
-    safe_json(profile)
-    if set(profile)-set(CANONICAL_PROFILE)-{'code_sha','concurrency','audit_plan_sha256'}:
+    safe_json(profile);automatic(profile)
+    if set(profile)-set(CANONICAL_PROFILE)-{'code_sha','concurrency','audit_plan_sha256','review_policy'}:
         raise ValueError('Unknown formal runtime field')
     if set(CANONICAL_PROFILE)-set(profile):raise ValueError('Incomplete research recipe')
     for key,value in CANONICAL_PROFILE.items():
@@ -35,9 +36,10 @@ def freeze_formal_profile(draft:dict, *, models:dict, provider:dict, prompt_sha:
 def validate_frozen_profile(profile:dict,expected_freeze_sha:str|None=None)->bool:
     validate_recipe(profile)
     if profile['status']!='frozen':raise ValueError('Formal profile is not frozen')
-    if set(profile['readiness'])!=set(CANONICAL_PROFILE['readiness']) or not all(v is True for v in profile['readiness'].values()):
+    if not readiness_valid(profile):
         raise ValueError('Formal quality and readiness checks are incomplete')
     for key in ('prompt_sha','resource_manifest_sha','code_sha','freeze_sha','audit_plan_sha256'):
+        if key=='audit_plan_sha256' and automatic(profile) and profile.get(key) is None:continue
         if not isinstance(profile.get(key),str) or not re.fullmatch('[0-9a-f]{64}',profile[key]):
             raise ValueError('Actual runtime identity is required')
     if profile['models']!={'primary':'gpt-6.1-sol','secondary':'gpt-6-astra'}:
