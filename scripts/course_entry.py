@@ -34,13 +34,14 @@ def build_app(project_root=ROOT, workspace=None):
 
     @app.get('/web/{name}')
     def static(name: str):
-        if name not in {'app.js', 'styles.css'}:
+        if name not in {'app.js', 'state.js', 'styles.css'}:
             raise HTTPException(404)
         return FileResponse(root / 'web' / name)
 
     @app.get('/api/v1/demo-defaults')
     def demo_defaults():
         return {'legacy_root': str(root / 'data/processed/nonllm-pilot-v5'),
+                'reviewed_root': str(root / 'data/development-reviewed-v1'),
                 'formal_root': str(root / 'data/formal-v1'),
                 'workspace': str(service.workspace)}
 
