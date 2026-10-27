@@ -202,7 +202,11 @@ def verify_run(run_dir):
             engineering.update(verification_kind='sealed_evaluation', evaluation_status='scored',
                                scoring_protocol=scored['evaluation_protocol'],
                                denominator=scored['denominator'])
-            if 'audit_plan.json' in files and 'audit_reviews.json' in files:
+            from .course_policy import automatic
+            if automatic(spec['resolved_config']):
+                audit={'audit_complete':False,'status':'not_performed_course_scope'}
+                engineering.update(review_policy='automatic_course',audit_status='not_performed_course_scope',audit=audit)
+            elif 'audit_plan.json' in files and 'audit_reviews.json' in files:
                 from .audit import audit_status
                 plan = _json(files['audit_plan.json'])
                 plan_sha = spec['resolved_config'].get('audit_plan_sha256')

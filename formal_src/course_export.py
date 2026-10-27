@@ -116,20 +116,27 @@ def export_bundle(root:Path, run_dir:Path, destination:Path, *, credential_value
         summary=RunResults.from_dict(_json(run_dir/'summary.json'))
         validate_frozen_profile(spec['resolved_config'],spec['freeze_sha'])
         files,evaluation_sha=_evaluation_files(run_dir.parent.parent,spec)
-        plan=_json(files['audit_plan.json']);reviews=_json(files['audit_reviews.json'])
-        validate_audit_plan(plan,tasks,spec['resolved_config']['audit_plan_sha256'])
-        audit=audit_status(plan,reviews)
+        from .course_policy import automatic
+        course=automatic(spec['resolved_config'])
+        if course:
+            audit={'audit_complete':False,'status':'not_performed_course_scope'}
+            audit_valid=(summary['audit_complete'] is False and summary['engineering'].get('audit')==audit and summary['engineering'].get('review_policy')=='automatic_course')
+        else:
+            plan=_json(files['audit_plan.json']);reviews=_json(files['audit_reviews.json'])
+            validate_audit_plan(plan,tasks,spec['resolved_config']['audit_plan_sha256'])
+            audit=audit_status(plan,reviews)
+            audit_valid=(summary['audit_complete'] and audit['audit_complete'] and summary['engineering'].get('audit')==audit and summary['engineering'].get('audit_provenance',{}).get('reviews_sha256')==_sha(files['audit_reviews.json']))
+        counts=(4400,3600,800) if spec['plan'].get('execution_scope')=='main_only' else (7600,6600,1000)
         if (state['kind']!='experiment' or state['purpose']!='formal' or state['state']!='completed'
-            or spec['kind']!='experiment' or spec['purpose']!='formal' or not summary['audit_complete']
-            or seal.get('synthetic') is not False or len(tasks)!=7600
-            or sum(t['work_type']=='generation' for t in tasks)!=6600
-            or sum(t['work_type']=='local_baseline' for t in tasks)!=1000
+            or spec['kind']!='experiment' or spec['purpose']!='formal' or not audit_valid
+            or seal.get('synthetic') is not False or len(tasks)!=counts[0]
+            or sum(t['work_type']=='generation' for t in tasks)!=counts[1]
+            or sum(t['work_type']=='local_baseline' for t in tasks)!=counts[2]
             or len(summary['main_comparisons'])!=4 or not summary['metrics']
-            or summary['evaluation_sha']!=evaluation_sha or not audit['audit_complete']
+            or summary['evaluation_sha']!=evaluation_sha
             or summary['engineering'].get('evaluation_status')!='scored'
             or summary['engineering'].get('verification_kind')!='sealed_evaluation'
-            or summary['engineering'].get('audit')!=audit
-            or summary['engineering'].get('audit_provenance',{}).get('reviews_sha256')!=_sha(files['audit_reviews.json'])):
+):
             raise ValueError()
     except (OSError,KeyError,ValueError,TypeError):
         return {'exported':False,'blocking_items':['formal_results_not_complete_and_reviewed']}
@@ -148,7 +155,7 @@ def export_bundle(root:Path, run_dir:Path, destination:Path, *, credential_value
     files.update({'报告.pdf':root/'course/报告.pdf','项目摘要.md':root/'course/项目摘要.md','AI使用声明.md':root/'course/AI使用声明.md'})
     files.update({p.name:p for p in contributions})
     safe_summary={k:summary[k] for k in ('schema_version','run_id','input_sha','output_sha','evaluation_sha','partitions','denominators','metrics','main_comparisons','audit_complete')}
-    safe_summary['engineering']={k:summary['engineering'][k] for k in ('purpose','synthetic','source_run_id','verification_kind','evaluation_status','scoring_protocol','denominator','audit','audit_provenance','attempt_count','cost_usd') if k in summary['engineering']}
+    safe_summary['engineering']={k:summary['engineering'][k] for k in ('purpose','synthetic','source_run_id','verification_kind','evaluation_status','scoring_protocol','denominator','audit','audit_provenance','attempt_count','cost_usd','review_policy','audit_status') if k in summary['engineering']}
     payload=json.dumps(safe_summary,ensure_ascii=False,indent=2).encode()
     if any(secret and secret.encode() in payload for secret in credential_values):raise ValueError('Credential in report data')
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=True)
