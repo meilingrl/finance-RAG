@@ -1,4 +1,4 @@
-# Optional local-only encoder; Linux CPU wheel instructions are in docs/APP_GUIDE.md.
+# Optional local-only encoder; Linux CPU wheel instructions are in docs/guides/APP_GUIDE.md.
 sentence-transformers==6.1.0
 transformers==5.20.2
 torch==2.14.1

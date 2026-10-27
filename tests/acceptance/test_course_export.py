@@ -14,6 +14,15 @@ class CourseExportTests(unittest.TestCase):
    files=self.module().collect_course_sources(root)
    self.assertIn('README.md',files);self.assertIn('formal_src/a.py',files)
    self.assertTrue(all(not x.startswith(('.local-secrets/','data/','artifacts/','.venv-app/')) for x in files))
+ def test_course_sources_include_frontend_tests_documented_in_guide(self):
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);test=root/'tests/web/test_state.cjs'
+   test.parent.mkdir(parents=True);test.write_text("require('node:assert').ok(true);\n")
+   private=root/'tests/web/private-notes.md';private.write_text('Not a frontend test')
+   files=self.module().collect_course_sources(root)
+   self.assertIn('tests/web/test_state.cjs',files)
+   self.assertEqual(files['tests/web/test_state.cjs'].read_bytes(),test.read_bytes())
+   self.assertNotIn('tests/web/private-notes.md',files)
  def test_missing_actual_course_documents_blocks_export_without_fake_material(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);run=root/'run';run.mkdir()
@@ -22,10 +31,10 @@ class CourseExportTests(unittest.TestCase):
    self.assertFalse(list(root.rglob('*.zip')))
  def test_missing_portable_guides_block_before_any_export(self):
   from formal_src.course_export import export_bundle
-  for missing in ('docs/COURSE_README.md','docs/APP_GUIDE.md'):
+  for missing in ('docs/delivery/COURSE_README.md','docs/guides/APP_GUIDE.md'):
    with self.subTest(missing=missing),tempfile.TemporaryDirectory() as td:
     root=Path(td)
-    for name in ['course/报告.pdf','course/项目摘要.md','course/submission.json','course/AI使用声明.md','docs/COURSE_README.md','docs/APP_GUIDE.md']:
+    for name in ['course/报告.pdf','course/项目摘要.md','course/submission.json','course/AI使用声明.md','docs/delivery/COURSE_README.md','docs/guides/APP_GUIDE.md']:
      if name==missing:continue
      p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('Synthetic document fixture')
     result=export_bundle(root,root/'run',root/'exports')
@@ -51,8 +60,8 @@ class CourseExportTests(unittest.TestCase):
    summary=dict(schema_version=1,run_id=rid,input_sha='0'*64,output_sha=output,evaluation_sha='0'*64,partitions={},denominators={},metrics={},main_comparisons=[],engineering={},audit_complete=True,answer_tables=['predictions.jsonl'],exports=[])
    (run/'summary.json').write_text(json.dumps(summary))
    (course/'AI使用声明.md').write_text('Synthetic test AI statement')
-   (root/'docs').mkdir();(root/'docs/COURSE_README.md').write_text('Synthetic course README')
-   (root/'docs/APP_GUIDE.md').write_text('Synthetic app guide')
+   (root/'docs/delivery').mkdir(parents=True);(root/'docs/guides').mkdir();(root/'docs/delivery/COURSE_README.md').write_text('Synthetic course README')
+   (root/'docs/guides/APP_GUIDE.md').write_text('Synthetic app guide')
    result=self.module().export_bundle(root,run,root/'exports')
    self.assertFalse(result['exported']);self.assertIn('formal_results_not_complete_and_reviewed',result['blocking_items'])
 if __name__=='__main__':unittest.main()
@@ -66,11 +75,11 @@ class CompletePackagingTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);spec,rd=build(root)
    course=root/'course';course.mkdir();(root/'README.md').write_text('PRIVATE-HISTORY-DO-NOT-SUBMIT')
-   (root/'docs').mkdir();(root/'docs/COURSE_README.md').write_text('Synthetic portable course README: [guide](docs/APP_GUIDE.md)')
-   (root/'docs/APP_GUIDE.md').write_text('Synthetic runnable app guide')
+   (root/'docs/delivery').mkdir(parents=True);(root/'docs/guides').mkdir();(root/'docs/delivery/COURSE_README.md').write_text('Synthetic portable course README: [guide](docs/guides/APP_GUIDE.md)')
+   (root/'docs/guides/APP_GUIDE.md').write_text('Synthetic runnable app guide')
    (root/'docs/private-history.md').write_text('PRIVATE-DOC-DO-NOT-SUBMIT')
    project=Path(__file__).resolve().parents[2]
-   (root/'docs/COURSE_SUBMISSION_MANIFEST.json').write_bytes((project/'docs/COURSE_SUBMISSION_MANIFEST.json').read_bytes())
+   (root/'docs/delivery/COURSE_SUBMISSION_MANIFEST.json').write_bytes((project/'docs/delivery/COURSE_SUBMISSION_MANIFEST.json').read_bytes())
    (root/'formal_src').mkdir()
    for filename in ('__init__.py','course_export.py','contracts.py'):
     (root/'formal_src'/filename).write_bytes((project/'formal_src'/filename).read_bytes())
@@ -85,8 +94,8 @@ class CompletePackagingTests(unittest.TestCase):
    self.assertFalse((root/'credential-rejected').exists())
    result=export_bundle(root,rd,root/'exports');self.assertTrue(result['exported'],result)
    with zipfile.ZipFile(result['archive']) as archive:
-    self.assertEqual(archive.read('README.md'),(root/'docs/COURSE_README.md').read_bytes())
-    self.assertEqual(archive.read('docs/APP_GUIDE.md'),(root/'docs/APP_GUIDE.md').read_bytes())
+    self.assertEqual(archive.read('README.md'),(root/'docs/delivery/COURSE_README.md').read_bytes())
+    self.assertEqual(archive.read('docs/guides/APP_GUIDE.md'),(root/'docs/guides/APP_GUIDE.md').read_bytes())
     self.assertNotIn('docs/private-history.md',archive.namelist())
     self.assertIn('AI使用声明.md',archive.namelist());self.assertNotIn('predictions.jsonl',archive.namelist());self.assertNotIn(b'NEVER-IN-ARCHIVE',archive.read('results/summary.json'))
     from formal_src.run_plan import content_sha,CANONICAL_PROFILE
@@ -111,13 +120,13 @@ import json
 import formal_src.course_export as exporter
 root=Path.cwd().resolve()
 assert Path(exporter.__file__).resolve()==root/'formal_src/course_export.py'
-assert exporter.MANIFEST.resolve()==root/'docs/COURSE_SUBMISSION_MANIFEST.json'
+assert exporter.MANIFEST.resolve()==root/'docs/delivery/COURSE_SUBMISSION_MANIFEST.json'
 assert exporter.MANIFEST.is_file()
-assert (root/'docs/COURSE_README.md').is_file()
+assert (root/'docs/delivery/COURSE_README.md').is_file()
 files=exporter.collect_course_sources(root)
 assert 'formal_src/course_export.py' in files
-assert 'docs/COURSE_README.md' in files
-assert 'docs/COURSE_SUBMISSION_MANIFEST.json' in files
+assert 'docs/delivery/COURSE_README.md' in files
+assert 'docs/delivery/COURSE_SUBMISSION_MANIFEST.json' in files
 result=exporter.export_bundle(root,root/'absent-run',root/'exports')
 assert result['exported'] is False and result['blocking_items']==['course_documents_missing'], result
 assert 'course/报告.pdf' in result['missing'], result

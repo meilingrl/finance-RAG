@@ -12,7 +12,7 @@ class ApplicationService:
  def _profile(self,pid):
   identifier(pid);p=self.workspace/'profiles'/f'{pid}.json'
   if p.exists():return read(p)
-  p=self.project_root/'formal_config'/f'{pid}.json'
+  p=self.project_root/'configs/formal'/f'{pid}.json'
   if p.exists():return read(p)
   if pid=='formal-v1':return {'profile_id':pid,'status':'draft','purpose':'formal'}
   raise ValueError('Profile missing')

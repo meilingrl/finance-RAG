@@ -7,9 +7,9 @@ import zipfile
 from pathlib import Path
 from .contracts import RunResults
 
-MANIFEST=Path(__file__).resolve().parents[1]/'docs/COURSE_SUBMISSION_MANIFEST.json'
+MANIFEST=Path(__file__).resolve().parents[1]/'docs/delivery/COURSE_SUBMISSION_MANIFEST.json'
 FORBIDDEN={'data','artifacts','.local-secrets','.venv-app','.git','__pycache__','node_modules','venv','checkpoint'}
-EXTENSIONS={'.py','.md','.txt','.json','.html','.css','.js','.yaml','.yml'}
+EXTENSIONS={'.py','.md','.txt','.json','.html','.css','.js','.cjs','.yaml','.yml'}
 
 
 def collect_course_sources(root:Path, *, credential_values=())->dict[str,Path]:
@@ -62,7 +62,7 @@ def runtime_configuration(spec):
 def resource_sha_index(spec, summary, manifest):
     """References only: public model downloads and dataset content identities."""
     from .contracts import relative
-    catalog_path=Path(__file__).resolve().parents[1]/'formal_config/minilm-files.json'
+    catalog_path=Path(__file__).resolve().parents[1]/'configs/formal/minilm-files.json'
     catalog=json.loads(catalog_path.read_text())
     public_catalog={key:catalog[key] for key in ('repo_id','revision','license')}
     public_catalog['files']=[{key:entry[key] for key in ('file','size','sha256','url')} for entry in catalog['files']]
@@ -151,7 +151,7 @@ def export_bundle(root:Path, run_dir:Path, destination:Path, *, credential_value
     if any(secret and (secret.encode() in runtime_payload or secret.encode() in resource_payload) for secret in credential_values):
         raise ValueError('Credential in runtime provenance')
     files=collect_course_sources(root,credential_values=credential_values)
-    files['README.md']=root/'docs/COURSE_README.md'
+    files['README.md']=root/'docs/delivery/COURSE_README.md'
     files.update({'报告.pdf':root/'course/报告.pdf','项目摘要.md':root/'course/项目摘要.md','AI使用声明.md':root/'course/AI使用声明.md'})
     files.update({p.name:p for p in contributions})
     safe_summary={k:summary[k] for k in ('schema_version','run_id','input_sha','output_sha','evaluation_sha','partitions','denominators','metrics','main_comparisons','audit_complete')}

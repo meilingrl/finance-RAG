@@ -1,0 +1,5 @@
+# Already present in the verified cloud environment; no installation was performed.
+pypdf==6.10.0
+PyMuPDF==1.26.6
+# Optional pretrained encoder has a separate CPU-only lock: requirements/requirements-encoder.txt.
+# See docs/guides/APP_GUIDE.md. Do not install generic GPU PyTorch for this pilot.

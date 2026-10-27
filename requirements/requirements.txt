@@ -1,4 +1,4 @@
 # Core fixture CLI, BM25, rules, metrics and tests: Python 3.12+ standard library.
 # No pip packages are required for `demo` or `unittest`.
 # Real PDF import: install ONE of pypdf or PyMuPDF only if not already present.
-# Rendering requires optional PyMuPDF. See requirements-optional.txt.
+# Rendering requires optional PyMuPDF. See requirements/requirements-optional.txt.

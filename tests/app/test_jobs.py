@@ -34,3 +34,24 @@ class JobsTest(unittest.TestCase):
   from app.jobs import JobStore
   self.assertFalse(JobStore._alive(os.getpid(),'not-the-original-process'))
   self.assertTrue(JobStore._alive(os.getpid(),JobStore._fingerprint(os.getpid())))
+
+ def test_recovery_replays_saved_result_after_worker_has_exited(self):
+  import time,json,hashlib
+  from app.service import ApplicationService
+  from app.jobs import atomic,read
+  from tests.app.test_service import request
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td);s=ApplicationService(root,root/'w');run=s.start_run(request());rid=run['run_id']
+   directory=s.jobs.directory(rid)
+   s.jobs.update(rid,state='running',in_flight_count=1)
+   atomic(directory/'process.json',{'pid':None})
+   (directory/'worker-events.jsonl').write_text(json.dumps({'event_type':'finished','counts':{'in_flight_count':0}})+'\n')
+   (directory/'predictions.jsonl').write_text('synthetic-result\n')
+   atomic(directory/'worker-result.json',{'state':'completed'})
+   reopened=ApplicationService(root,root/'w')
+   deadline=time.monotonic()+2
+   while reopened.get_run(rid)['state']=='running' and time.monotonic()<deadline:time.sleep(.01)
+   self.assertEqual(reopened.get_run(rid)['state'],'completed')
+   self.assertEqual(reopened.get_run(rid)['in_flight_count'],0)
+   self.assertEqual(len(reopened.jobs.events(rid)),1)
+   self.assertEqual(read(directory/'integrity.json')['outputs']['predictions.jsonl'],hashlib.sha256(b'synthetic-result\n').hexdigest())

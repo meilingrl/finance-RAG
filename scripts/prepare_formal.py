@@ -15,7 +15,7 @@ from formal_src.acquisition import select_questions,evaluation_records,diagnosti
 from formal_src.data_protocol import source_key,select_auxiliary
 
 def load_protocol():
-    return json.loads((ROOT/'formal_config/source_protocol.json').read_text())
+    return json.loads((ROOT/'configs/formal/source_protocol.json').read_text())
 
 def readl(path):return [json.loads(x) for x in path.read_text().splitlines()]
 

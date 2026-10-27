@@ -19,3 +19,6 @@ __pycache__/
 *.log
 *.pem
 *.key
+
+# Local configuration overrides (also when stored under configs/).
+**/config.llm.local.json

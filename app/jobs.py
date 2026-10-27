@@ -135,7 +135,8 @@ class JobStore:
    s=read(p)
    if s['state'] not in ('running','queued','pause_requested','cancel_requested','validating'):continue
    proc=read(p.parent/'process.json',{});pid=proc.get('pid')
-   if self._alive(pid,proc.get('fingerprint')):self._monitor(s['run_id'],pid)
+   # A worker may finish while the service is down; replay its durable result.
+   if self._alive(pid,proc.get('fingerprint')) or (p.parent/'worker-result.json').is_file():self._monitor(s['run_id'],pid)
    else:self.update(s['run_id'],state='interrupted',available_actions=['resume','inspect'])
  def resume_checks(self,run_id):
   d=self.directory(run_id);spec=read(d/'spec.json');checks=read(d/'integrity.json',{})

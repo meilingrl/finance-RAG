@@ -18,7 +18,7 @@ def main(argv=None):
     ensure_candidate_mutable(output)
     manifest_path = output / 'resources.json'
     resources = json.loads(manifest_path.read_text())
-    model_manifest = json.loads((ROOT / 'formal_config/minilm-files.json').read_text())
+    model_manifest = json.loads((ROOT / 'configs/formal/minilm-files.json').read_text())
     model_root = output / 'models/all-MiniLM-L6-v2'
     report = provision(model_root, model_manifest)
     bindings = []

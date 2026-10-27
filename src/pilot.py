@@ -44,7 +44,7 @@ def parser():
         run.add_argument("--data", required=True)
         run.add_argument("--output", required=True)
         run.add_argument("--freeze", help="Required pre-evaluation code/config/data freeze for isolated gold")
-        run.add_argument("--config", help="JSON configuration; config.example.yaml is valid JSON/YAML")
+        run.add_argument("--config", help="JSON configuration; configs/examples/config.example.yaml is valid JSON/YAML")
         run.add_argument("--retriever", choices=["bm25", "sentence_transformers"])
         run.add_argument("--model-path", help="Existing local sentence-transformer directory only")
         if name == "run-offline":

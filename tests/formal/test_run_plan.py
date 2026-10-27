@@ -12,7 +12,7 @@ class PlanTests(unittest.TestCase):
     def setUp(self):
         self.cohorts={'main':[f'q{i}' for i in range(200)],'diagnostic':[f'd{i}' for i in range(50)],'s50':[f'q{i}' for i in range(50)]}
     def profile(self):
-        return json.loads(Path('formal_config/formal-v1.json').read_text())
+        return json.loads(Path('configs/formal/formal-v1.json').read_text())
     def test_compiler_available(self): self.assertIsNotNone(compile_run_plan, 'compiler missing')
     def test_complete_deterministic_plan(self):
         self.assertIsNotNone(compile_run_plan)

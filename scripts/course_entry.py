@@ -30,7 +30,7 @@ def build_app(project_root=ROOT, workspace=None):
 
     @app.get('/help')
     def help_page():
-        return FileResponse(root / 'docs/APP_GUIDE.md',media_type='text/plain; charset=utf-8')
+        return FileResponse(root / 'docs/guides/APP_GUIDE.md',media_type='text/plain; charset=utf-8')
 
     @app.get('/web/{name}')
     def static(name: str):

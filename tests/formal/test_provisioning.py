@@ -31,7 +31,7 @@ class ProvisionTests(unittest.TestCase):
   for protection in ('human_scope_review','application_registry'):
    with self.subTest(protection=protection),tempfile.TemporaryDirectory() as td:
     root=Path(td);output=root/'candidate';output.mkdir()
-    (root/'formal_config').mkdir();(root/'formal_config/minilm-files.json').write_text('{}')
+    (root/'configs/formal').mkdir(parents=True);(root/'configs/formal/minilm-files.json').write_text('{}')
     manifest={'resources':[],'qualification':{},'human_scope_review':protection=='human_scope_review'}
     (output/'resources.json').write_text(json.dumps(manifest))
     if protection=='application_registry':

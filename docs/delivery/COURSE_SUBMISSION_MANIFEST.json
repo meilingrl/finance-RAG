@@ -3,7 +3,7 @@
   "max_archive_bytes": 50000000,
   "source_patterns": [
     "README.md",
-    "requirements*.txt",
+    "requirements/requirements*.txt",
     "src/**/*.py",
     "formal_src/**/*.py",
     "app/**/*.py",
@@ -12,19 +12,20 @@
     "web/*.js",
     "scripts/*.py",
     "tests/**/*.py",
-    "formal_config/*.json",
-    "config*.example.*",
-    "docs/APP_GUIDE.md",
-    "docs/COURSE_SUBMISSION_MANIFEST.json",
-    "docs/COURSE_README.md"
+    "tests/web/*.cjs",
+    "configs/formal/*.json",
+    "configs/examples/*",
+    "docs/guides/APP_GUIDE.md",
+    "docs/delivery/COURSE_SUBMISSION_MANIFEST.json",
+    "docs/delivery/COURSE_README.md"
   ],
   "required_documents": [
     "course/报告.pdf",
     "course/项目摘要.md",
     "course/submission.json",
     "course/AI使用声明.md",
-    "docs/COURSE_README.md",
-    "docs/APP_GUIDE.md"
+    "docs/delivery/COURSE_README.md",
+    "docs/guides/APP_GUIDE.md"
   ],
   "submission_fields": [
     "leader_id",

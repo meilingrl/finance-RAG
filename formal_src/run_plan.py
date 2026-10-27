@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from .contracts import ContractError, identifier, safe_json
 
-CANONICAL_PROFILE = json.loads((Path(__file__).resolve().parent.parent/'formal_config/formal-v1.json').read_text())
+CANONICAL_PROFILE = json.loads((Path(__file__).resolve().parent.parent/'configs/formal/formal-v1.json').read_text())
 
 def content_sha(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()).hexdigest()

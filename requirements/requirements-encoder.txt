@@ -1,5 +1,5 @@
 # Verified Linux x86_64 / CPython 3.12 CPU-only runtime.
-# Prefer a separate venv; see docs/ENCODER_SETUP.md. No GPU packages.
+# Prefer a separate venv; see docs/guides/APP_GUIDE.md. No GPU packages.
 --index-url https://pypi.org/simple
 --extra-index-url https://download.pytorch.org/whl/cpu
 --only-binary=:all:
