@@ -9,6 +9,16 @@ from .run_plan import CANONICAL_PROFILE, content_sha
 DYNAMIC={'status','models','provider','prompt_sha','resource_manifest_sha','freeze_sha','readiness','code_sha','concurrency','audit_plan_sha256'}
 
 
+def validate_models(models,required_roles=('primary',)):
+    if not isinstance(models,dict) or set(models)-{'primary','secondary'}:
+        raise ValueError('formal_models_invalid')
+    for role in ('primary','secondary'):
+        value=models.get(role)
+        if value is None and role not in required_roles:continue
+        if not isinstance(value,str) or not value.strip():
+            raise ValueError('formal_model_missing_'+role)
+
+
 def validate_recipe(profile):
     safe_json(profile);automatic(profile)
     if set(profile)-set(CANONICAL_PROFILE)-{'code_sha','concurrency','audit_plan_sha256','review_policy'}:
@@ -42,15 +52,14 @@ def validate_frozen_profile(profile:dict,expected_freeze_sha:str|None=None)->boo
         if key=='audit_plan_sha256' and automatic(profile) and profile.get(key) is None:continue
         if not isinstance(profile.get(key),str) or not re.fullmatch('[0-9a-f]{64}',profile[key]):
             raise ValueError('Actual runtime identity is required')
-    if profile['models']!={'primary':'gpt-6.1-sol','secondary':'gpt-6-astra'}:
-        raise ValueError('Model configuration differs from the declared formal recipe')
+    validate_models(profile['models'])
     provider=profile['provider']
     if (not isinstance(provider,dict) or provider.get('max_output_tokens')!=2048
             or provider.get('reasoning_effort')!='low' or provider.get('stream') is not True):
         raise ValueError('Generation protocol differs from declared formal protocol')
     from .provider import validate_config
     validate_config({**provider,'model':profile['models']['primary']})
-    if type(profile.get('concurrency')) is not int or profile['concurrency'] not in (1,2,4):
+    if type(profile.get('concurrency')) is not int or not 1<=profile['concurrency']<=32:
         raise ValueError('Unsupported verified concurrency')
     claimed=profile['freeze_sha'];unsealed={**profile,'freeze_sha':None}
     if content_sha(unsealed)!=claimed or expected_freeze_sha is not None and claimed!=expected_freeze_sha:

@@ -7,7 +7,7 @@
 - 数据来自 TAT-DQA，保留 CC BY 4.0 归属。抽样与来源划分入口是 `configs/formal/source_protocol.json`；推理输入与评价金标分离。
 - 检索器为 BM25 与固定 `all-MiniLM-L6-v2`。MiniLM revision、下载文件及校验身份见 `configs/formal/minilm-files.json`。
 - 核心条件：E1 规则抽取；E2 文本生成；E3 同范围文本与图像生成；E4 文本与结构辅助生成。另保留旧规则比较器 E1_legacy。
-- 正式配方见 `configs/formal/formal-v1.json`：k=2，随机种子20261023，生成条件重复3轮。正式模型与传输协议由 `formal_src/profile_lifecycle.py` 校验；更换服务模型不能静默视为同一实验。
+- 正式配方见 `configs/formal/formal-v1.json`：k=2，随机种子20261023，生成条件重复3轮。正式主模型与对照模型采用已保存配置，由 `formal_src/profile_lifecycle.py` 校验并冻结；主集可省略对照模型，完整计划必须提供。更换模型需重新检查和冻结，形成新的配置身份；历史运行继续使用其原始配置记录。
 - 输入按来源隔离，检索在同一文档候选证据中进行。文件、代码、提示和方案身份参与冻结与复核。
 
 ## 实际完成与未执行部分

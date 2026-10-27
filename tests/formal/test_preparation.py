@@ -29,19 +29,20 @@ class PreparationTests(unittest.TestCase):
    result=run(spec,lambda e:None,{'run_dir':str(rd)},transport=lambda *a:self.fail('sent'))
    self.assertEqual(result['state'],'blocked');self.assertIn('preparation_checkpoint_changed',result['blocking_items'])
 
- def test_parallel_probe_saves_results_before_continuing(self):
+ def test_formal_saves_results_without_repeating_configuration_probe(self):
   from tests.formal.test_runner import full_fixture,SyntheticEncoder
   import time
   with tempfile.TemporaryDirectory() as td:
    spec,rd=full_fixture(Path(td));spec['resolved_config']['concurrency']=4;events=[]
    def emit(e):
     events.append(e)
-    if e['event_type']=='parallel_probe_passed':(rd/'control.json').write_text('{"action":"pause"}')
+    if e['event_type']=='logical_unit_completed' and e['counts']['completed_logical_count']>=1:(rd/'control.json').write_text('{"action":"pause"}')
    def transport(endpoint,payload,key,timeout):time.sleep(.03);return fake_response(payload)
    with patch('formal_src.retrieval.LocalEncoder',SyntheticEncoder):result=run(spec,emit,{'run_dir':str(rd)},transport=transport)
    self.assertEqual(result['state'],'paused',result)
-   proof=json.loads((rd/'parallel-validation.json').read_text());self.assertTrue(proof['passed']);self.assertEqual(proof['concurrency'],4)
-   self.assertGreaterEqual(proof['peak_in_flight'],2);self.assertTrue((rd/'predictions.jsonl').exists())
+   self.assertFalse((rd/'parallel-validation.json').exists())
+   self.assertFalse(any(e['event_type'].startswith('parallel_probe_') for e in events))
+   self.assertTrue((rd/'predictions.jsonl').exists())
 
  def test_association_expansion_only_rechecks_current_document(self):
   import hashlib

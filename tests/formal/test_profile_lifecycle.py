@@ -25,3 +25,14 @@ class LifecycleTests(unittest.TestCase):
   self.assertIsNone(self.draft()['freeze_sha'])
 
 if __name__=='__main__':unittest.main()
+
+class AdjustableConcurrencyTests(LifecycleTests):
+ def test_new_parallel_limits_are_frozen_into_identity(self):
+  for n in (1,8,16,32):
+   with self.subTest(n=n):
+    profile=self.module().freeze_formal_profile(self.draft(),concurrency=n,**self.options())
+    self.assertEqual(profile['concurrency'],n)
+    self.assertTrue(self.module().validate_frozen_profile(profile))
+  for n in (0,33,True,2.5):
+   with self.subTest(n=n),self.assertRaises(ValueError):
+    self.module().freeze_formal_profile(self.draft(),concurrency=n,**self.options())

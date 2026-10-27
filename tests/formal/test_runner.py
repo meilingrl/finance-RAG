@@ -355,7 +355,8 @@ class FormalFixTests(unittest.TestCase):
     elif field=='stream':config['provider']['stream']=False
     elif field=='prompt':config['prompt_sha']='0'*64
     else:config['code_sha']=spec['code_sha']='0'*64
-    config['freeze_sha']=None;config['freeze_sha']=digest(config);spec['freeze_sha']=config['freeze_sha']
+    if field!='model':
+     config['freeze_sha']=None;config['freeze_sha']=digest(config);spec['freeze_sha']=config['freeze_sha']
     with self.assertRaises(RunnerBlocked):formal_tasks(spec,input_package(rd)[0])
 
  def test_pause_and_cancel_before_retry_settle_known_attempt(self):
@@ -409,7 +410,7 @@ class FormalFixTests(unittest.TestCase):
   from formal_src.provider import APIError
   import threading
   with tempfile.TemporaryDirectory() as d:
-   spec,rd=full_fixture(Path(d));spec.update(kind='demo',demo_input={'doc_id':'doc','question':'How long?','retriever':'bm25','groups':['E2','E3']});spec['resolved_config']['concurrency']=2
+   spec,rd=full_fixture(Path(d));spec['resolved_config']['concurrency']=2
    peer_finished=threading.Event();calls=[]
    def emit(event):
     if event['event_type']=='attempt_finished' and event['counts']['failure_count']==1:peer_finished.set()
@@ -417,8 +418,11 @@ class FormalFixTests(unittest.TestCase):
     calls.append(payload)
     if any(c['type']=='input_image' for c in payload['input'][0]['content']):raise APIError('transport_TimeoutError')
     self.assertTrue(peer_finished.wait(3));raise APIError('http_502')
-   result=run(spec,emit,lambda:'continue',transport=transport,run_dir=rd)
-   self.assertEqual(result['state'],'blocked',result);self.assertEqual(len(calls),2)
+   from unittest.mock import patch
+   selected=[next(t for t in spec['plan']['units'] if t['condition']==c and t['retriever']=='bm25' and t['repeat']==1) for c in ('E2','E3')]
+   with patch('formal_src.runner.formal_tasks',return_value=selected),patch('formal_src.retrieval.LocalEncoder',SyntheticEncoder):
+    result=run(spec,emit,lambda:'continue',transport=transport,run_dir=rd)
+   self.assertEqual(result['state'],'blocked',result);self.assertEqual(len(calls),2,result)
    attempts=[json.loads(s) for s in (rd/'attempts.jsonl').read_text().splitlines()]
    self.assertEqual(len({a['attempt_id'] for a in attempts}),2)
    records=[json.loads(s) for s in (rd/'predictions.jsonl').read_text().splitlines()];self.assertEqual(records[0]['status'],'failed')

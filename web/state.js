@@ -24,5 +24,10 @@
   const last=events.at(-1),age=last?Math.max(0,(now-Date.parse(last.time))/1000):null;
   return {phase:state.phase,prepared,preparationTotal,concurrency,lastSaved,lastProgress:last?.time||null,saved:state.completed_logical_count+local,stalled:state.state==='running'&&(age===null||age>150)};
  }
- if(typeof module!=='undefined')module.exports={createState,runActivity};else root.RagState={createState,runActivity};
+ function matchesFrozenModel(profile,values){
+  return profile?.status==='frozen'&&profile.models?.primary===values.model&&
+   (profile.models?.secondary||'')===(values.secondary||'')&&profile.provider?.endpoint===values.endpoint&&
+   (profile.concurrency??4)===values.concurrency;
+ }
+ if(typeof module!=='undefined')module.exports={createState,runActivity,matchesFrozenModel};else root.RagState={createState,runActivity,matchesFrozenModel};
 })(typeof window!=='undefined'?window:globalThis);

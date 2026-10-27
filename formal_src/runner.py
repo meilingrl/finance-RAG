@@ -207,10 +207,12 @@ def formal_tasks(spec,data):
  if spec['logical_generation_count']!=expected['logical_generation_count']:raise RunnerBlocked('formal_logical_count_mismatch')
  if spec['purpose']!='software_test':
   config=spec['resolved_config']
-  from .profile_lifecycle import validate_frozen_profile
+  from .profile_lifecycle import validate_frozen_profile,validate_models
   from .provider import INSTRUCTIONS
   try:validate_frozen_profile(config,spec['freeze_sha'])
   except ValueError:raise RunnerBlocked('frozen_generation_protocol_invalid') from None
+  try:validate_models(config.get('models'),{t['model_role'] for t in expected['units'] if t['work_type']=='generation'})
+  except ValueError as exc:raise RunnerBlocked(str(exc)) from None
   if config['prompt_sha']!=hashlib.sha256(INSTRUCTIONS.encode()).hexdigest():raise RunnerBlocked('prompt_identity_mismatch')
   if spec['code_sha']!=current_code_sha():raise RunnerBlocked('actual_code_identity_mismatch')
   if config.get('freeze_sha')!=spec['freeze_sha'] or digest({**config,'freeze_sha':None})!=spec['freeze_sha']:raise RunnerBlocked('freeze_identity_mismatch')
@@ -276,9 +278,8 @@ def _run_owned(spec,emit,control,transport,rd):
   if spec['kind']=='demo':questions,tasks=demo_tasks(spec,questions)
   elif spec['kind']=='experiment':tasks=formal_tasks(spec,data)
   else:raise RunnerBlocked('unsupported_run_kind')
-  concurrency=spec['resolved_config'].get('concurrency',1)
-  if type(concurrency) is not int or concurrency not in {1,2,4}:raise RunnerBlocked('verified_concurrency_invalid')
-  if spec['purpose']!='software_test' and spec['kind']!='experiment' and concurrency>1 and spec['resolved_config'].get('concurrency_verified') is not True:raise RunnerBlocked('concurrency_not_verified')
+  concurrency=1 if spec['kind']=='demo' else spec['resolved_config'].get('concurrency',1)
+  if type(concurrency) is not int or not 1<=concurrency<=32:raise RunnerBlocked('verified_concurrency_invalid')
   task_sha=digest(tasks);input_sha=sha(rd/'inputs.json');identity={'spec_sha':digest(spec),'task_sha':task_sha,'input_sha':input_sha}
   if (rd/'execution-identity.json').exists() and json.loads((rd/'execution-identity.json').read_text())!=identity:raise RunnerBlocked('execution_identity_changed')
   atomic(rd/'execution-identity.json',identity)
@@ -441,10 +442,6 @@ def _run_owned(spec,emit,control,transport,rd):
     group=sorted([t for t in tasks if t['repeat']==repeat],key=lambda t:t['task_id']);rng.shuffle(group);ordered.extend(group)
   atomic(rd/'dispatch-order.json',[t['task_id'] for t in ordered])
   stop=None;errors=[]
-  proof_path=rd/'parallel-validation.json';proof=json.loads(proof_path.read_text()) if proof_path.exists() else {}
-  probe=spec['kind']=='experiment' and concurrency>1 and not (proof.get('spec_sha')==digest(spec) and proof.get('passed') is True)
-  probe_submitted=0;probe_failures=counts['failure_count'];probe_retries=counts['retry_count']
-  if probe:event('parallel_probe_started')
   with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
    futures={};inflight_keys={}
    def drain_one():
@@ -485,15 +482,6 @@ def _run_owned(spec,emit,control,transport,rd):
     if requested:
      stop=dispatch_state['action'];break
     future=pool.submit(execute,c);futures[future]=c;inflight_keys[key]=future
-    if probe:
-     probe_submitted+=1
-     if probe_submitted==concurrency:
-      while futures:drain_one()
-      passed=not errors and not dispatch_state['fatal'] and not dispatch_state['unknown'] and counts['failure_count']==probe_failures and counts['retry_count']==probe_retries and dispatch_state['peak']>1
-      atomic(proof_path,{'spec_sha':digest(spec),'concurrency':concurrency,'peak_in_flight':dispatch_state['peak'],'calls':probe_submitted,'passed':passed,'attempt_count':counts['attempt_count']})
-      if not passed:
-       stop='pause';dispatch_state['action']='pause';errors.append('parallel_probe_failed');break
-      event('parallel_probe_passed');probe=False
    while futures:drain_one()
   stop=dispatch_state['action'] or stop
   if dispatch_state['rolling'] and 'rolling_failure_threshold' not in errors:errors.append('rolling_failure_threshold')

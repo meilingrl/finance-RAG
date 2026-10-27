@@ -106,7 +106,7 @@ function stepStatus(name,text,tone=''){const s=$('status-'+name);s.textContent=t
 // ---------- feedback ----------
 const notice=(s,tone='info')=>{$('notice').textContent=s;$('notice').dataset.tone=tone;};
 function box(id,text,tone=''){$(id).textContent=text;$(id).dataset.tone=tone;}
-const reasonNames={profile_not_frozen:'正式方案尚未冻结',demo_only_resources:'当前登记的是旧开发材料',resources_not_ready:'正式资源尚未就绪',model_missing:'尚未登记本地模型',reviews_missing:'人工核验尚未完成',credential_required:'请填写并保存本次会话密钥',kernel_unavailable:'执行模块尚未就绪',source_not_sealed:'原运行尚未封存',execution_slot_busy:'已有任务正在运行',model_profile_required:'请选择已保存的自定义模型方案',approved_resources_immutable:'已审核资料不可重建',evaluation_gold_missing:'缺少绑定的评价资料',provider_generation_failed:'模型服务未完成生成，查看调用记录',qualification_source_disjoint:'来源重复检查待完成',qualification_cohorts_validated:'样本分组检查待完成',qualification_inputs_complete:'待补齐完整输入',qualification_development_passed:'开发检查未通过',qualification_validation_passed:'验证检查未通过',qualification_compatibility_passed:'模型兼容检查未通过',qualification_throughput_passed:'吞吐检查未通过',qualification_budget_validated:'调用预算尚未核定',qualification_evidence_missing:'缺少运行检查记录',course_documents_missing:'课程报告、摘要或成员资料尚未准备',formal_preset_required:'只能冻结固定正式方案',preregistered_audit_plan_required:'缺少预注册审核子集',preregistered_audit_plan_invalid:'预注册审核子集未通过校验',budget_exhausted:'调用额度不足',retry_demo_budget_exhausted:'演示与重试额度不足',category_budget_exceeded:'分类额度已超出',budget_check_failed:'调用账本校验失败',frozen_profile_invalid:'冻结配置校验未通过',code_changed:'代码已变化，与冻结身份不符',resources_changed:'资料已变化，与冻结身份不符',profile_changed:'方案已变化，与运行身份不符',inference_projection_unavailable:'推理输入不可用',formal_plan_unavailable:'正式计划不可编译',model_not_in_catalog:'模型不在服务目录中',operational_marker_not_answered:'连通检查未返回预期标记'};
+const reasonNames={formal_models_invalid:'模型配置无效，请检查主模型与对照模型',formal_model_missing_primary:'请填写并保存主模型名称',formal_model_missing_secondary:'完整实验包含第二模型对照，请填写并保存对照模型',concurrency_not_verified:'请在配置区完成当前模型与并发数的检查',concurrency_invalid:'并发数应为 1–32 的整数',single_check_failed:'单请求检查未通过，并发检查未执行',profile_not_frozen:'正式方案尚未冻结',demo_only_resources:'当前登记的是旧开发材料',resources_not_ready:'正式资源尚未就绪',model_missing:'尚未登记本地模型',reviews_missing:'人工核验尚未完成',credential_required:'请填写并保存本次会话密钥',kernel_unavailable:'执行模块尚未就绪',source_not_sealed:'原运行尚未封存',execution_slot_busy:'已有任务正在运行',model_profile_required:'请选择已保存的自定义模型方案',approved_resources_immutable:'已审核资料不可重建',evaluation_gold_missing:'缺少绑定的评价资料',provider_generation_failed:'模型服务未完成生成，查看调用记录',qualification_source_disjoint:'来源重复检查待完成',qualification_cohorts_validated:'样本分组检查待完成',qualification_inputs_complete:'待补齐完整输入',qualification_development_passed:'开发检查未通过',qualification_validation_passed:'验证检查未通过',qualification_compatibility_passed:'模型兼容检查未通过',qualification_throughput_passed:'吞吐检查未通过',qualification_budget_validated:'调用预算尚未核定',qualification_evidence_missing:'缺少运行检查记录',course_documents_missing:'课程报告、摘要或成员资料尚未准备',formal_preset_required:'只能冻结固定正式方案',preregistered_audit_plan_required:'缺少预注册审核子集',preregistered_audit_plan_invalid:'预注册审核子集未通过校验',budget_exhausted:'调用额度不足',retry_demo_budget_exhausted:'演示与重试额度不足',category_budget_exceeded:'分类额度已超出',budget_check_failed:'调用账本校验失败',frozen_profile_invalid:'冻结配置校验未通过',code_changed:'代码已变化，与冻结身份不符',resources_changed:'资料已变化，与冻结身份不符',profile_changed:'方案已变化，与运行身份不符',inference_projection_unavailable:'推理输入不可用',formal_plan_unavailable:'正式计划不可编译',model_not_in_catalog:'模型不在服务目录中',operational_marker_not_answered:'连通检查未返回预期标记'};
 Object.assign(reasonNames,{
  demo_only_resources:'仅供开发演示，不能直接用于正式实验',
  approved_blind_scope_review_missing:'所选 E3/E4 缺少有效的证据范围审核。请登记「E1–E4 开发演示包」，或补齐该资料的审核记录',
@@ -132,13 +132,15 @@ async function api(path,body,method='POST') {
  if(!response.ok)throw Error(data.detail||data.message||data.code||'请求未完成（'+response.status+'）');return data;
 }
 function bind(id,fn){$(id).onclick=async()=>{const button=$(id);button.disabled=true;try{await fn();}catch(e){notice(String(e.message),'error');}finally{button.disabled=false;if(id==='experiment')button.disabled=!experimentReady;}};}
-function request(kind,canonical=false){return {schema_version:1,client_request_id:crypto.randomUUID(),kind,profile_id:canonical?'formal-v1':profile,resource_set_id:resource,source_run_id:kind==='verify'?run:null,demo_input:kind==='demo'?{doc_id:$('doc').value.trim(),question:$('question').value.trim(),retriever:$('retriever').value,groups:['E1',...['e2','e3','e4'].filter(id=>$(id).checked).map(id=>id.toUpperCase())]}:null};}
+function request(kind,canonical=false){
+ if(kind==='experiment'&&canonical&&!window.RagState.matchesFrozenModel(profiles.find(p=>p.profile_id==='formal-v1'),{model:$('model').value.trim(),secondary:$('secondary').value.trim(),endpoint:$('endpoint').value.trim(),concurrency:Number($('concurrency').value)}))throw Error('当前模型或并发配置与冻结方案不同，请先保存、检查并重新冻结。');
+ return {schema_version:1,client_request_id:crypto.randomUUID(),kind,profile_id:canonical?'formal-v1':profile,resource_set_id:resource,source_run_id:kind==='verify'?run:null,demo_input:kind==='demo'?{doc_id:$('doc').value.trim(),question:$('question').value.trim(),retriever:$('retriever').value,groups:['E1',...['e2','e3','e4'].filter(id=>$(id).checked).map(id=>id.toUpperCase())]}:null};}
 
 // ---------- 1 配置与资源 ----------
 function showProfile(){const current=profiles.find(p=>p.profile_id===profile);$('profiles').value=profile;const status=current?.status||'draft';$('profile').textContent=profile==='formal-v1'?`固定正式方案 · ${status}；开发 E1 无需密钥。`:`当前模型方案：${profile} · ${status}`;$('ctxProfile').textContent=(profile==='formal-v1'?'formal-v1':current?.models?.primary||short(profile))+' · '+status;}
 async function refreshProfiles(){const caps=await api('capabilities');profiles=caps.profiles;$('profiles').replaceChildren(...profiles.map(p=>el('option',{value:p.profile_id,textContent:(p.profile_id==='formal-v1'?'固定正式方案':p.models?.primary||'自定义')+' · '+p.status+' · '+p.profile_id})));if(!profiles.some(p=>p.profile_id===profile))profile='formal-v1';showProfile();return caps;}
-function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}}
-$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);const p=profiles.find(x=>x.profile_id===profile);if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}showProfile();};
+function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);$('concurrency').value=p?.concurrency??4;if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}}
+$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);const p=profiles.find(x=>x.profile_id===profile);if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}$('concurrency').value=p?.concurrency??4;showProfile();};
 function resourceSummary(report){
  if(report.resources[0]?.registered_root)$('resourcePath').value=report.resources[0].registered_root;
  $('resourceDetails').textContent=pretty(report);
@@ -173,16 +175,31 @@ bind('reviewed',async()=>register((await api('demo-defaults')).reviewed_root));
 bind('prepared',async()=>{const path=(await api('demo-defaults')).formal_root;$('resourcePath').value=path;await register(path,'automatic_course');});
 bind('prepare',()=>start(request('prepare'),'prepareBlocks'));
 bind('importReviews',async()=>{if(!resource)throw Error('请先登记对应资源');const report=await api('resources/'+resource+'/reviews',JSON.parse($('reviewManifest').value));resourceSummary(report);notice('已校验并导入审核记录。记录与资源 SHA 绑定，其他门槛仍单独检查。','ok');});
-bind('save',async()=>{
+async function saveModel(){
+ experimentReady=false;$('experiment').disabled=true;
  const endpoint=$('endpoint').value.trim(),model=$('model').value.trim();if(!endpoint||!model)throw Error('请填写实际接口完整地址和主模型名称');
+ const concurrency=Number($('concurrency').value);if(!Number.isInteger(concurrency)||concurrency<1||concurrency>32)throw Error('正式实验并发数应为 1–32 的整数');
  await api('settings',{base_url:endpoint,model,secondary_model:$('secondary').value.trim(),timeout_seconds:120},'PUT');
- const values={models:{primary:model,secondary:$('secondary').value.trim()||null},provider:{endpoint,max_output_tokens:2048,reserve_input_tokens:131072,timeout_seconds:120,stream:true,reasoning_effort:'low'}};
+ const values={concurrency,models:{primary:model,secondary:$('secondary').value.trim()||null},provider:{endpoint,max_output_tokens:2048,reserve_input_tokens:131072,timeout_seconds:120,stream:true,reasoning_effort:'low'}};
  const current=profiles.find(p=>p.profile_id===profile);
  const adopted=profile==='formal-v1'||current?.status==='frozen'?await api('profiles/'+profile+'/clone',values):await api('profiles/'+profile,values,'PUT');profile=adopted.profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);
  if($('key').value){const result=await api('credentials/session',{api_key:$('key').value});credential=result.credential_ref;savedState?.saveCredential(session,credential);$('key').value='';$('key').placeholder='本次会话已保存密钥';}
- await refreshProfiles();notice('模型方案已保存；密钥只在服务内存中。输出上限2048，reasoning low，store false。','ok');
+ await refreshProfiles();return adopted;
+}
+bind('save',async()=>{await saveModel();notice('模型方案已保存；单题串行，正式实验使用配置的并发数。','ok');});
+bind('check',async()=>{
+ const adopted=await saveModel(),count=adopted.concurrency;
+ const controls=['save','endpoint','model','secondary','concurrency','profiles','key'];
+ for(const id of controls)$(id).disabled=true;
+ $('providerCheckStatus').textContent=`检查中：先测单请求，再测 ${count} 路并发…`;
+ try{
+  const report=await api('provider/check',{settings:{...adopted.provider,model:adopted.models.primary,concurrency:count},credential_ref:credential,level:'compatibility'});
+  const text=`单请求${report.single.ready?'通过':'未通过'}；${count} 路检查 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
+  $('providerCheckStatus').textContent=text; $('providerCheckDetails').textContent=pretty(report);
+  notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
+ }finally{for(const id of controls)$(id).disabled=false;}
 });
-bind('check',async()=>{const report=await api('provider/check',{settings:{endpoint:$('endpoint').value.trim(),model:$('model').value.trim(),max_output_tokens:2048,reserve_input_tokens:131072,stream:true,reasoning_effort:'low'},credential_ref:credential,level:'generation'});notice(report.ready?'合成文本连通检查通过；图像、对照模型和吞吐仍需独立检查。':'连通检查未通过：'+joinReasons(report.blocking_items),report.ready?'ok':'warn');$('preflightDetails').textContent=pretty(report);});
+for(const id of ['endpoint','model','secondary','concurrency'])$(id).addEventListener('input',()=>{experimentReady=false;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
 
 // ---------- 3 正式实验 ----------
 let experimentReady=false;

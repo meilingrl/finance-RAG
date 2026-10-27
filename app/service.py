@@ -61,6 +61,9 @@ class ApplicationService:
   ref=str(uuid4());self.credentials[ref]=api_key;return ref
  def check_provider(self,settings,credential_ref,level):
   settings=self._clean(settings)
+  if level=='compatibility':
+   from .provider_checks import check_compatibility
+   return check_compatibility(self,settings,credential_ref)
   if level not in ('catalog','generation'):raise ValueError('Invalid check level')
   key=self.credentials.get(credential_ref)
   if not key:return {'ready':False,'blocking_items':['credential_required'],'sent_attempts':0}
@@ -89,9 +92,14 @@ class ApplicationService:
    from formal_src.provider import ProviderError,APIError
    known=isinstance(exc,ProviderError) or isinstance(exc,APIError) and str(exc).startswith('http_')
    budget.transition(reservation,'completed' if known else 'unknown')
-   return {'ready':False,'blocking_items':['provider_generation_failed'],'sent_attempts':1,'level':'generation','purpose':'operational_probe'}
+   code=str(exc) if known else 'transport_outcome_unknown'
+   if not code.replace('_','').isalnum() or len(code)>80:code='provider_generation_failed'
+   return {'ready':False,'blocking_items':[code],'sent_attempts':1,'level':'generation','purpose':'operational_probe'}
   ready=result.get('status')=='answered' and result.get('parsed_answer')=='READY'
   return {'ready':ready,'blocking_items':[] if ready else ['operational_marker_not_answered'],'sent_attempts':1,'level':'generation','purpose':'operational_probe','model':config['model'],'response_id':result.get('response_id')}
+ def parallel_verified(self,profile):
+  from .provider_checks import parallel_verified
+  return parallel_verified(self.workspace,profile)
  def register_resources(self,root_path,review_policy=None):return self.resources.register(root_path,review_policy)
  def check_resources(self,resource_set_id):return self.resources.check(resource_set_id)
  def import_reviews(self,resource_set_id,review_manifest):return self.resources.import_reviews(resource_set_id,review_manifest)
@@ -103,16 +111,28 @@ class ApplicationService:
   cohorts=read(Path(projection['root'])/bindings[0]['path'])
   return compile_run_plan(CANONICAL_PROFILE,cohorts,execution_scope=self.resources.record(resource_set_id)['manifest'].get('execution_scope','full'))
  def freeze_profile(self,profile_id,resource_set_id,model_profile_id=None):
+  with self.jobs.lock():
+   return self._freeze_profile(profile_id,resource_set_id,model_profile_id)
+ def _freeze_profile(self,profile_id,resource_set_id,model_profile_id):
   draft=self._profile(profile_id);r=self.check_resources(resource_set_id);blocks=[]
   if 'freeze' not in r['ready_for']:blocks+=r['blocking_items'] or ['resources_not_ready']
   if profile_id!='formal-v1':blocks.append('formal_preset_required')
   if not model_profile_id or not model_profile_id.startswith('custom-'):blocks.append('model_profile_required')
   if blocks:return dict(frozen=False,blocking_items=sorted(set(blocks)))
-  from formal_src.profile_lifecycle import freeze_formal_profile
+  from formal_src.profile_lifecycle import freeze_formal_profile,validate_frozen_profile,validate_models
   from formal_src.provider import INSTRUCTIONS
   import hashlib
   adopted=self._profile(model_profile_id)
   plan=self._compiled_plan(resource_set_id)
+  try:validate_models(adopted.get('models'),{t['model_role'] for t in plan['units'] if t['work_type']=='generation'})
+  except ValueError as exc:return dict(frozen=False,blocking_items=[str(exc)])
+  if not self.parallel_verified(adopted):return dict(frozen=False,blocking_items=['concurrency_not_verified'])
+  states=(read(path) for path in self.jobs.runs.glob('*/state.json'))
+  if any(s.get('kind')=='experiment' and s.get('state') in ('queued','validating','running','pause_requested','cancel_requested') for s in states):
+   return dict(frozen=False,blocking_items=['execution_slot_busy'])
+  previous=draft if draft.get('status')=='frozen' else None
+  if previous:validate_frozen_profile(previous)
+  draft={**draft,'status':'draft'}
   record=self.resources.record(resource_set_id)
   from formal_src.course_policy import automatic
   course=automatic(record['manifest']);audit_sha=None
@@ -127,6 +147,8 @@ class ApplicationService:
    except (ValueError,KeyError,TypeError):return dict(frozen=False,blocking_items=['preregistered_audit_plan_invalid'])
   readiness={'cohorts_verified':True,'models_verified':True,'resources_verified':True,'human_reviews_complete':not course}
   frozen=freeze_formal_profile(draft,models=adopted.get('models',{}),provider=adopted.get('provider',{}),prompt_sha=hashlib.sha256(INSTRUCTIONS.encode()).hexdigest(),resource_manifest_sha=digest(record['manifest']),code_sha=self._code_sha(),readiness=readiness,concurrency=adopted.get('concurrency',4),audit_plan_sha256=audit_sha)
+  if previous and previous['freeze_sha']!=frozen['freeze_sha']:
+   atomic(self.workspace/'profiles'/'history'/(previous['freeze_sha']+'.json'),previous)
   atomic(self.workspace/'profiles'/f'{profile_id}.json',frozen)
   return dict(frozen=True,profile_hash=digest(frozen),freeze_sha=frozen['freeze_sha'],blocking_items=[])
  def _budget(self):
@@ -146,6 +168,7 @@ class ApplicationService:
   return self._preflight(request)
  def _preflight(self,request,remaining_generations=None):
   q=RunRequest.from_dict(request);p=self._profile(q['profile_id']);r=self.check_resources(q['resource_set_id']);blocks=[]
+  if q['kind']=='experiment' and not self.worker_command and not self.parallel_verified(p):blocks.append('concurrency_not_verified')
   if not self._worker():blocks.append('kernel_unavailable')
   integrity_verify=q['kind']=='verify' and read(self.jobs.directory(q['source_run_id'])/'spec.json',{}).get('kind')=='demo'
   if q['kind'] not in r['ready_for'] and not (integrity_verify and 'demo' in r['ready_for']):blocks+=r['blocking_items'] or ['resources_not_ready']
@@ -160,11 +183,13 @@ class ApplicationService:
    if p.get('status')=='frozen' or record and (record.get('reviews') or any(v is True for v in record['manifest'].get('qualification',{}).values())):blocks.append('approved_resources_immutable')
   if q['kind']=='experiment':blocks+=['profile_not_frozen'] if p.get('status')!='frozen' else []
   if q['kind']=='experiment' and p.get('status')=='frozen' and not self.worker_command:
-   from formal_src.profile_lifecycle import validate_frozen_profile
+   from formal_src.profile_lifecycle import validate_frozen_profile,validate_models
    try:validate_frozen_profile(p)
    except ValueError:blocks.append('frozen_profile_invalid')
    if p.get('code_sha')!=self._code_sha():blocks.append('code_changed')
    record=self.resources.record(q['resource_set_id'])
+   try:validate_models(p.get('models'),('primary',) if record and record['manifest'].get('execution_scope')=='main_only' else ('primary','secondary'))
+   except ValueError as exc:blocks.append(str(exc))
    if p.get('resource_manifest_sha')!=digest(record['manifest'] if record else {}):blocks.append('resources_changed')
   if q['kind']=='verify':
    source=self.jobs.directory(q['source_run_id'])
@@ -177,9 +202,13 @@ class ApplicationService:
   if categories['development_validation']>500 or categories['retry_demo']>900:blocks.append('category_budget_exceeded')
   return PreflightReport.from_dict(dict(schema_version=1,ready=not blocks,blocking_items=sorted(set(blocks)),profile_hash=digest(p),estimated_logical_generations=logical,estimated_additional_attempts=additional,budget_remaining=remaining,price_status='unknown'))
  def start_run(self,request,credential_ref=None):
+  with self.jobs.lock():
+   return self._start_run(request,credential_ref)
+ def _start_run(self,request,credential_ref):
   q=RunRequest.from_dict(self._clean(request));pre=self.preflight(q);p=self._profile(q['profile_id']);rid=str(uuid4());record=self.resources.record(q['resource_set_id']);blocks=list(pre['blocking_items'])
   generation=q['kind']=='experiment' or q['kind']=='demo' and any(x!='E1' for x in q['demo_input']['groups'])
   if generation and credential_ref not in self.credentials:blocks.append('credential_required')
+  if q['kind']=='demo':p={**p,'concurrency':1}
   if q['kind']=='prepare' and record:p={**p,'prepare_output':record['root']}
   plan={}
   if q['kind']=='experiment' and p.get('status')=='frozen' and not self.worker_command:
@@ -232,6 +261,7 @@ class ApplicationService:
    integrity_verify=spec['kind']=='verify' and read(self.jobs.directory(spec['source_run_id'])/'spec.json',{}).get('kind')=='demo'
    blocks += report['blocking_items'] if spec['kind'] not in report['ready_for'] and not (integrity_verify and 'demo' in report['ready_for']) else []
    current_profile=self._profile(spec['profile_id'])
+   if spec['kind']=='demo':current_profile={**current_profile,'concurrency':1}
    if spec['kind']=='prepare' and record:current_profile={**current_profile,'prepare_output':record['root']}
    if digest(current_profile) != digest(spec['resolved_config']):blocks.append('profile_changed')
    if not self._worker():blocks.append('kernel_unavailable')
@@ -241,6 +271,10 @@ class ApplicationService:
    with self.jobs.lock():
     current=self.jobs.get(run_id)
     if current['updated_at']!=s['updated_at']:return current
+    launch_profile=self._profile(spec['profile_id'])
+    if spec['kind']=='demo':launch_profile={**launch_profile,'concurrency':1}
+    if spec['kind']=='prepare' and record:launch_profile={**launch_profile,'prepare_output':record['root']}
+    if digest(launch_profile)!=digest(spec['resolved_config']):blocks.append('profile_changed')
     if blocks:return self.jobs.update(run_id,state='blocked',blocking_items=sorted(set(blocks)))
     try:projection=self.resources.inference_projection(spec['resource_set_id'])
     except ValueError:return self.jobs.update(run_id,state='blocked',blocking_items=['inference_projection_unavailable'])

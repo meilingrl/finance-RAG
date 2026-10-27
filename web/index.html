@@ -69,14 +69,18 @@
       <div class="grid">
         <label>Responses 接口完整地址<input id="endpoint" type="url" placeholder="https://服务地址/v1/responses"></label>
         <label>主模型<input id="model" placeholder="填写渠道实际模型名称"></label>
-        <label>对照模型（正式实验需要）<input id="secondary" placeholder="尚未验证"></label>
+        <label>对照模型（完整实验使用，主集可留空）<input id="secondary" placeholder="尚未验证"></label>
+        <label>正式实验并发数（1–32）<input id="concurrency" type="number" min="1" max="32" step="1" value="4"></label>
         <label>会话密钥<input id="key" type="password" autocomplete="off" placeholder="E1 无需密钥"></label>
       </div>
       <p class="hint">密钥仅保存在本次服务会话内；刷新页面后可继续运行，服务重启需重新填写。保存配置会显式创建自定义方案。</p>
       <div class="actions">
         <button id="save">保存为自定义方案</button>
-        <button id="check" class="secondary">检查开发兼容性</button>
+        <button id="check" class="secondary">保存并检查连通与并发</button>
       </div>
+      <p class="hint">单题演示固定串行。检查先发 1 次合成请求，再按所选并发数测试；并发为 1 时仅检查 1 次。修改配置后需重新检查。</p>
+      <p id="providerCheckStatus" class="hint" role="status"></p>
+      <details><summary>接口与并发检查明细</summary><pre id="providerCheckDetails"></pre></details>
     </section>
     <details class="block advanced">
       <summary><span class="mark">C</span>高级：结果工作区、人工审核记录、重建输入</summary>
@@ -163,7 +167,7 @@
     <section class="block" id="experimentStart">
       <h3><span class="mark">A</span>启动步骤</h3>
       <ol class="checklist">
-        <li><div><strong>冻结正式方案</strong><p class="hint">采用当前模型方案，核对资料、模型与运行配置。</p></div><button id="freeze" class="secondary">检查冻结</button></li>
+        <li><div><strong>冻结正式方案</strong><p class="hint">采用已保存的主模型与对照模型；更换配置后重新检查并冻结。</p></div><button id="freeze" class="secondary">检查冻结</button></li>
         <li><div><strong>正式预检</strong><p class="hint">核对冻结配置、代码与资料身份和调用额度。</p></div><button id="preflight" class="secondary">检查预设</button></li>
         <li><div><strong>启动正式实验</strong><p class="hint">预检通过后可用；启动运行已冻结的实验范围。</p></div><button id="experiment" disabled>启动</button></li>
       </ol>

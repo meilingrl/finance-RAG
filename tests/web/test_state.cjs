@@ -17,3 +17,13 @@ console.log('PASS refresh, restart, workspace isolation, resource binding, crede
 
 assert.equal(createState(null,null,'a').credential('server'),null);
 createState(null,null,'a').saveDemo({question:'safe'});
+
+const {matchesFrozenModel}=require('../../web/state.js');
+const frozen={status:'frozen',models:{primary:'deepseek-flash',secondary:null},provider:{endpoint:'https://example.invalid/responses'},concurrency:8};
+const selected={model:'deepseek-flash',secondary:'',endpoint:'https://example.invalid/responses',concurrency:8};
+assert.equal(matchesFrozenModel(frozen,selected),true);
+for(const changed of [{model:'another-model'},{secondary:'second-model'},{endpoint:'https://other.invalid/responses'},{concurrency:16}]){
+ assert.equal(matchesFrozenModel(frozen,{...selected,...changed}),false);
+}
+assert.equal(matchesFrozenModel({...frozen,status:'draft'},selected),false);
+console.log('PASS changed configuration requires a matching frozen model snapshot');
