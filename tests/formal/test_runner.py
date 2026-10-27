@@ -7,7 +7,7 @@ class RunnerTests(unittest.TestCase):
   from scripts.llm_execution import APIError
   from unittest.mock import patch
   for concurrency in (1,4):
-   for code in ('http_401','http_403','http_400','http_404','model_mismatch','usage_invalid'):
+   for code in ('http_401','http_403','http_400','http_404','model_mismatch'):
     with self.subTest(concurrency=concurrency,code=code),tempfile.TemporaryDirectory() as d:
      spec,rd=full_fixture(Path(d));spec['resolved_config']['concurrency']=concurrency
      (rd/'spec.json').write_text(json.dumps(spec));calls=[]

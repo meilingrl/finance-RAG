@@ -10,12 +10,14 @@ from .provider import build_payload,generate,digest,ProviderError,APIError,valid
 from .budget import Budget,BudgetError,append,latest
 from .retrieval import retrieve
 from .baseline import extract
+from .course_policy import readiness_valid
+from .recovery import commit_prediction,repair_prediction,save_receipt,settle_receipts,restored_result
 from .evidence import build_associations,expand_once
 
 class RunnerBlocked(ValueError):pass
 
 TRANSIENT_HTTP = {'http_429','http_500','http_502','http_503','http_504'}
-PROVIDER_FAILURES = {'model_mismatch','usage_missing','usage_invalid','response_not_completed','provider_validation_failed','model_not_adopted','provider_limits_missing','provider_endpoint_invalid','inference_sensitive_field','wire_budget_invalid','wire_budget_exceeded','context_budget_exceeded','capability_missing','capability_unsupported'}
+PROVIDER_FAILURES = {'model_mismatch','response_not_completed','provider_validation_failed','model_not_adopted','provider_limits_missing','provider_endpoint_invalid','inference_sensitive_field','wire_budget_invalid','wire_budget_exceeded','context_budget_exceeded','capability_missing','capability_unsupported'}
 def fatal_provider_failure(code):
  return bool(code and (code in PROVIDER_FAILURES or code.startswith('http_') and code not in TRANSIENT_HTTP))
 
@@ -117,14 +119,17 @@ def run(spec,emit,control,transport=None,*,run_dir=None):
 
 
 def input_package(rd):
- projection=json.loads((rd/'inputs.json').read_text());root=Path(projection['root']).resolve();bindings={};data={}
+ return input_projection(json.loads((rd/'inputs.json').read_text()))
+
+def input_projection(projection):
+ root=Path(projection['root']).resolve();bindings={};data={'review_policy':projection.get('review_policy','human_reviewed')}
  for b in projection['resources']:
   if b['kind'] not in {'input','model','approved_description'}:raise RunnerBlocked('inference_projection_invalid')
   p=(root/b['path']).resolve()
   if not p.is_relative_to(root) or not p.is_file() or sha(p)!=b['sha256']:raise RunnerBlocked('inference_asset_changed')
   if b['path'] in bindings:raise RunnerBlocked('duplicate_input_binding')
   bindings[b['path']]={**b,'absolute':p}
-  if p.name in {'inference_questions.jsonl','evidence_units.jsonl','approved_structures.jsonl'}:
+  if p.name in {'inference_questions.jsonl','evidence_units.jsonl','approved_structures.jsonl','draft_structures.jsonl'}:
    if p.name in data:raise RunnerBlocked('duplicate_input_role')
    data[p.name]=rows(p)
    for record in data[p.name]:safe_json(record)
@@ -135,8 +140,10 @@ def input_package(rd):
  if not all(k in data for k in ('inference_questions.jsonl','evidence_units.jsonl')):raise RunnerBlocked('inference_inputs_missing')
  return data,bindings
 
-def reviewed_assets(evidence,all_units,data,bindings,condition):
+def reviewed_assets(evidence,all_units,data,bindings,condition,asset_builder=None):
  import base64
+ from .course_policy import automatic,course_assets
+ if automatic(data):return asset_builder(evidence,condition) if asset_builder else course_assets(evidence,all_units,data,bindings,condition)
  assets={'verified':True,'evidence_sha':digest(evidence),'full_page_units':[u for u in all_units if u['doc_id'] in {x['doc_id'] for x in evidence}]}
  normalized=condition.removeprefix('M2_')
  if normalized in {'E2','E2_k1','E2_k4','E2_no_association','D','C0','C1'}:return assets
@@ -194,10 +201,10 @@ def formal_tasks(spec,data):
  from .run_plan import compile_run_plan,CANONICAL_PROFILE
  cohorts=data.get('cohorts.json')
  if cohorts is None:raise RunnerBlocked('cohort_binding_missing')
- expected=compile_run_plan(CANONICAL_PROFILE,cohorts)
+ expected=compile_run_plan(CANONICAL_PROFILE,cohorts,execution_scope=spec['plan'].get('execution_scope','full'))
  for key in ('units','cohort_hash','logical_generation_count','local_baseline_count','condition_expectations','retrieval_work'):
   if spec['plan'].get(key)!=expected[key]:raise RunnerBlocked('formal_recipe_identity_mismatch')
- if spec['logical_generation_count']!=6600:raise RunnerBlocked('formal_logical_count_mismatch')
+ if spec['logical_generation_count']!=expected['logical_generation_count']:raise RunnerBlocked('formal_logical_count_mismatch')
  if spec['purpose']!='software_test':
   config=spec['resolved_config']
   from .profile_lifecycle import validate_frozen_profile
@@ -207,11 +214,11 @@ def formal_tasks(spec,data):
   if config['prompt_sha']!=hashlib.sha256(INSTRUCTIONS.encode()).hexdigest():raise RunnerBlocked('prompt_identity_mismatch')
   if spec['code_sha']!=current_code_sha():raise RunnerBlocked('actual_code_identity_mismatch')
   if config.get('freeze_sha')!=spec['freeze_sha'] or digest({**config,'freeze_sha':None})!=spec['freeze_sha']:raise RunnerBlocked('freeze_identity_mismatch')
-  allowed={'status','models','provider','prompt_sha','resource_manifest_sha','freeze_sha','readiness','code_sha','concurrency','audit_plan_sha256'}
-  if set(config)-set(CANONICAL_PROFILE)-{'code_sha','concurrency','audit_plan_sha256'}:raise RunnerBlocked('formal_profile_identity_mismatch')
+  allowed={'status','models','provider','prompt_sha','resource_manifest_sha','freeze_sha','readiness','code_sha','concurrency','audit_plan_sha256','review_policy'}
+  if set(config)-set(CANONICAL_PROFILE)-{'code_sha','concurrency','audit_plan_sha256','review_policy'}:raise RunnerBlocked('formal_profile_identity_mismatch')
   if any(config.get(k)!=v for k,v in CANONICAL_PROFILE.items() if k not in allowed):raise RunnerBlocked('formal_profile_identity_mismatch')
   if config.get('code_sha')!=spec['code_sha'] or config.get('resource_manifest_sha')!=spec['resource_sha']:raise RunnerBlocked('formal_snapshot_identity_mismatch')
-  if not spec['freeze_sha'] or config.get('status')!='frozen' or not spec['plan'].get('executable') or not all(config.get('readiness',{}).get(k) is True for k in CANONICAL_PROFILE['readiness']):raise RunnerBlocked('qualified_frozen_spec_required')
+  if not spec['freeze_sha'] or config.get('status')!='frozen' or not spec['plan'].get('executable') or not readiness_valid(config):raise RunnerBlocked('qualified_frozen_spec_required')
   for key in ('cohort_sizes','retrievers','core_conditions','auxiliary_conditions','k','repeats','seed','metrics','budgets'):
    if config.get(key)!=CANONICAL_PROFILE[key]:raise RunnerBlocked('formal_profile_identity_mismatch')
   if spec['plan'].get('profile_hash')!=expected['profile_hash']:raise RunnerBlocked('formal_profile_identity_mismatch')
@@ -227,6 +234,9 @@ def _run_owned(spec,emit,control,transport,rd):
  import threading,random,concurrent.futures,subprocess,sys
  from collections import Counter,deque
  spec=ResolvedRunSpec.from_dict(spec).to_dict()
+ from .course_policy import automatic
+ from .retry_policy import code_for,retryable
+ course_retry=automatic(spec['resolved_config'])
  if transport is not None and spec['purpose']!='software_test':raise RunnerBlocked('injected_transport_requires_software_test')
  pending=latest(rd/'attempts.jsonl');counts={'attempt_count':len(pending),'in_flight_count':0,'failure_count':sum(bool(r.get('error_code')) or r.get('parse_status') in {'failed','parse_error','truncated'} for r in pending.values()),'completed_logical_count':0,'completed_local_count':0,'reuse_count':0,'retry_count':0};guard=threading.Lock();technical=deque((bool(r.get('error_code')) or r.get('parse_status') in {'failed','parse_error','truncated'} for r in pending.values() if r['state']=='completed'),maxlen=100)
  def event(kind,phase='generation'):
@@ -238,8 +248,13 @@ def _run_owned(spec,emit,control,transport,rd):
   if result not in {'continue','pause','cancel',None}:raise RunnerBlocked('invalid_control_action')
   return result
  try:
+  repair_prediction(rd);settle_receipts(rd);pending=latest(rd/'attempts.jsonl')
+  technical.clear();technical.extend(bool(r.get('error_code')) or r.get('parse_status') in {'failed','parse_error','truncated'} for r in pending.values() if r['state']=='completed')
+  # Explicitly restarting a course worker opens a fresh health window; the durable ledger stays intact.
+  if course_retry:technical.clear()
+  counts['failure_count']=sum(bool(r.get('error_code')) or r.get('parse_status') in {'failed','parse_error','truncated'} for r in pending.values())
   for attempt in pending.values():
-   if fatal_provider_failure(attempt.get('error_code')):raise RunnerBlocked(attempt['error_code'])
+   if fatal_provider_failure(attempt.get('error_code')) and not (course_retry and retryable(attempt.get('error_code'))):raise RunnerBlocked(attempt['error_code'])
   if any(r['state'] in {'sent','unknown'} for r in pending.values()):raise RunnerBlocked('unknown_attempt_requires_inspection')
   if spec['purpose']!='software_test' and spec['kind'] in {'demo','experiment'} and spec['code_sha']!=current_code_sha():raise RunnerBlocked('actual_code_identity_mismatch')
   if spec['kind']=='verify':
@@ -255,7 +270,9 @@ def _run_owned(spec,emit,control,transport,rd):
    event('curator_started','prepare')
    proc=subprocess.run([sys.executable,str(script),'--output',output,'--build-inputs'],env={k:v for k,v in os.environ.items() if k!='FORMAL_API_KEY'},stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    return finish('completed' if proc.returncode==0 else 'blocked',[] if proc.returncode==0 else ['curator_build_failed'])
-  data,bindings=input_package(rd);questions=data['inference_questions.jsonl'];units=data['evidence_units.jsonl']
+  data,bindings=input_package(rd)
+  if spec['kind']=='experiment' and data.get('review_policy','human_reviewed')!=spec['resolved_config'].get('review_policy','human_reviewed'):raise RunnerBlocked('review_policy_identity_mismatch')
+  questions=data['inference_questions.jsonl'];units=data['evidence_units.jsonl']
   if spec['kind']=='demo':questions,tasks=demo_tasks(spec,questions)
   elif spec['kind']=='experiment':tasks=formal_tasks(spec,data)
   else:raise RunnerBlocked('unsupported_run_kind')
@@ -277,54 +294,73 @@ def _run_owned(spec,emit,control,transport,rd):
   qindex={q['question_id']:q for q in questions};byid={u['evidence_id']:u for u in units}
   if len(byid)!=len(units):raise RunnerBlocked('duplicate_evidence_identity')
   edges=build_associations(units);retrieval_cache={};prepared={};encoders={}
+  from .preparation import PreparationCache
+  from .course_policy import CourseAssetBuilder
+  checkpoints=PreparationCache(rd,{'code_sha':spec['code_sha'],'input_sha':input_sha,'config_sha':digest(spec['resolved_config'])})
+  asset_builder=CourseAssetBuilder(units,data,bindings)
+  bydoc={}
+  for unit in units:bydoc.setdefault(unit['doc_id'],[]).append(unit)
+  counts['completed_logical_count']=sum(r['model_role']!='local' for r in done.values());counts['completed_local_count']=len(done)-counts['completed_logical_count']
+  event('preparing_0_of_'+str(len(tasks)),'prepare')
   # Prepare/freeze all common evidence and every variant before the first send.
   def retrieve_cached(q,retriever,k,variant=None):
    cfg={'retriever':retriever,'k':k,**spec['resolved_config'].get('retrieval',{}).get(retriever,{})}
    if variant:cfg['variant']=variant;cfg['tokenizer']=variant if retriever=='bm25' else cfg.get('tokenizer','finance')
    key=(q['question_id'],digest(cfg))
    if key not in retrieval_cache:
-    encoder=None
-    if retriever=='minilm':
-     from .retrieval import LocalEncoder
-     path=cfg.get('model_path','') if spec['purpose']=='software_test' else projected_model_root(bindings)
-     encoders.setdefault(path,None)
-     if encoders[path] is None:encoders[path]=LocalEncoder(path)
-     encoder=encoders[path]
-    result=retrieve(q,units,cfg,encoder=encoder);retrieval_cache[key]=result
-    append(rd/'retrieval.jsonl',result)
+    def build_retrieval():
+     encoder=None
+     if retriever=='minilm':
+      from .retrieval import LocalEncoder
+      path=cfg.get('model_path','') if spec['purpose']=='software_test' else projected_model_root(bindings)
+      encoders.setdefault(path,None)
+      if encoders[path] is None:encoders[path]=LocalEncoder(path)
+      encoder=encoders[path]
+     result=retrieve(q,bydoc.get(q['doc_id'],[]),cfg,encoder=encoder)
+     append(rd/'retrieval.jsonl',result);return result
+    retrieval_cache[key]=checkpoints.get(['retrieval',q,cfg],build_retrieval)
    return retrieval_cache[key]
-  for task in tasks:
-   q=qindex[task['question_id']];r=retrieve_cached(q,task['retriever'],task['k']);selected=r['selected_ids'] if task['condition']=='E2_no_association' else expand_once(r['selected_ids'],units,edges);evidence=[byid[e] for e in selected]
-   context={'task':task,'q':q,'evidence':evidence,'evidence_sha':digest(evidence)}
-   if task['work_type']=='generation':
-    assets=reviewed_assets(evidence,units,data,bindings,task['condition']);content=condition_content(task['condition'],q['question'],evidence,assets)
-    config={**(spec['resolved_config'].get('provider') or {}),'model':spec['resolved_config'].get('models',{}).get(task['model_role'])};validate_config(config)
-    payload=build_payload(config,q['question'],evidence,content=content);context.update(config=config,payload=payload,request_hash=digest(payload),selected_ids=selected)
-    if task['condition']=='C1':context['selected_ids']=[u['evidence_id'] for u in assets['full_page_units']]
-    if task['condition']=='C0':context['selected_ids']=[]
-   else:context.update(request_hash=digest({'question':q,'evidence':evidence,'model':task['condition']}))
-   prepared[task['task_id']]=context
+  for task_index,task in enumerate(tasks):
+   # Pause is honored during preparation, before another potentially expensive item.
+   if not callable(control):
+    requested=action()
+    if requested in {'pause','cancel'}:return finish('paused' if requested=='pause' else 'cancelled')
+   q=qindex[task['question_id']]
+   def build_context():
+    r=retrieve_cached(q,task['retriever'],task['k']);selected=r['selected_ids'] if task['condition']=='E2_no_association' else expand_once(r['selected_ids'],bydoc.get(q['doc_id'],[]),edges);evidence=[byid[e] for e in selected]
+    context={'q':q,'evidence':evidence,'evidence_sha':digest(evidence)}
+    if task['work_type']=='generation':
+     assets=reviewed_assets(evidence,units,data,bindings,task['condition'],asset_builder);content=condition_content(task['condition'],q['question'],evidence,assets)
+     config={**(spec['resolved_config'].get('provider') or {}),'model':spec['resolved_config'].get('models',{}).get(task['model_role'])};validate_config(config)
+     payload=build_payload(config,q['question'],evidence,content=content);context.update(config=config,payload=payload,request_hash=digest(payload),selected_ids=selected)
+     if task['condition']=='C1':context['selected_ids']=[u['evidence_id'] for u in assets['full_page_units']]
+     if task['condition']=='C0':context['selected_ids']=[]
+    else:context.update(request_hash=digest({'question':q,'evidence':evidence,'model':task['condition']}))
+    return context
+   key=['context',task['question_id'],task['retriever'],task['condition'],task['model_role'],task['k']]
+   context={**checkpoints.get(key,build_context),'task':task};prepared[task['task_id']]=context
    if task['task_id'] in done:
     record=done[task['task_id']]
     if record['evidence_sha']!=context['evidence_sha'] or record['request_hash']!=context['request_hash'] or record['run_id']!=spec['run_id']:raise RunnerBlocked('prediction_content_identity_changed')
+   if task_index==0 or (task_index+1)%10==0 or task_index+1==len(tasks):event('preparing_'+str(task_index+1)+'_of_'+str(len(tasks)),'prepare')
   # Registered local diagnostics are independent of answer outcomes.
   if spec['kind']=='experiment':
    for work in spec['plan']['retrieval_work']:
     for qid in work['question_ids']:retrieve_cached(qindex[qid],work['retriever'],work['k'],work['variant'])
   atomic(rd/'evidence-freeze.json',{'input_sha':input_sha,'tasks':{tid:{'ids':[u['evidence_id'] for u in c['evidence']],'sha':c['evidence_sha']} for tid,c in prepared.items()}})
-  counts['completed_logical_count']=sum(r['model_role']!='local' for r in done.values());counts['completed_local_count']=len(done)-counts['completed_logical_count'];cache={}
+  event('concurrency_'+str(concurrency),'generation');cache={}
   def reuse_key(c):return (c['config']['endpoint'],c['request_hash'],c['task']['repeat'])
   for tid,record in done.items():
    if record['provenance']!='local':cache.setdefault(reuse_key(prepared[tid]),record)
   def save(context,result,refs=(),usage=None,provenance='live',source=None,elapsed=0):
    t=context['task'];q=context['q'];model=context.get('config',{}).get('model') or ('legacy-e1' if t['condition']=='E1_legacy' else 'formal-e1-v1')
    record=AnswerRecord.from_dict(dict(schema_version=1,run_id=spec['run_id'],question_id=q['question_id'],source_id=q.get('source_id',q['doc_id']),retriever=t['retriever'],model=model,model_role=t['model_role'],condition=t['condition'],repeat=t['repeat'],task_id=t['task_id'],evidence_sha=context['evidence_sha'],status=result['status'],answer=result['answer'],scale=result.get('scale') or '',citations=result['citations'],request_hash=context['request_hash'],attempt_refs=list(refs),elapsed_ms=elapsed,usage=usage or {'cost_usd':None},provenance=provenance,reuse_source_task_id=source)).to_dict()
-   append(rd/'predictions.jsonl',record);append(rd/'prediction-checksums.jsonl',{'task_id':t['task_id'],'sha256':digest(record)});done[t['task_id']]=record
+   commit_prediction(rd,record,digest(record));done[t['task_id']]=record
    with guard:
     counts['completed_local_count' if t['model_role']=='local' else 'completed_logical_count']+=1
     counts['reuse_count']+=provenance=='same_round_reuse'
    event('logical_unit_completed');return record
-  budget=Budget(rd.parent.parent/'budget.jsonl');dispatch_state={'action':None,'unknown':False,'rolling':False,'fatal':None}
+  budget=Budget(rd.parent.parent/'budget.jsonl');dispatch_state={'action':None,'unknown':False,'rolling':False,'fatal':None,'peak':0}
   class DispatchStopped(Exception):pass
   def permission():
    requested=action()
@@ -334,39 +370,66 @@ def _run_owned(spec,emit,control,transport,rd):
     if dispatch_state['fatal']:return 'fatal'
     if dispatch_state['unknown']:return 'unknown'
     return dispatch_state['action']
+  def retry_pending(c):
+   related=[a for a in pending.values() if a['task_id']==c['task']['task_id'] and a['state']!='reserved']
+   return course_retry and 0<len(related)<3 and related[-1]['state']=='completed' and retryable(related[-1].get('error_code'))
   def execute(c):
-   refs=[];started=time.monotonic();parsed=None
-   for retry in range(2):
+   related=[a for a in pending.values() if a['task_id']==c['task']['task_id'] and a['state']!='reserved'] if course_retry else []
+   if any(a['request_hash']!=c['request_hash'] for a in related):raise RunnerBlocked('recovery_request_changed')
+   refs=[a['attempt_id'] for a in related];started=time.monotonic();parsed=None
+   for retry in range(len(refs),3 if course_retry else 2):
+    if course_retry and retry:
+     event('retry_wait_'+str(retry))
+     deadline=time.monotonic()+(0 if transport else 2**retry)
+     while time.monotonic()<deadline:
+      if permission():raise DispatchStopped()
+      time.sleep(min(.2,max(0,deadline-time.monotonic())))
     if permission():
-     if not refs:raise DispatchStopped()
+     if not refs or course_retry:raise DispatchStopped()
      parsed={'status':'failed','parsed_answer':None,'scale':'','citations':[],'usage':{'cost_usd':None}};break
     category='retry_demo' if retry or spec['kind']=='demo' and spec['purpose']!='development' else 'formal' if spec['kind']=='experiment' else 'development_validation'
     reservation=budget.reserve(spec['run_id'],c['task']['task_id'],c['request_hash'],category);append(rd/'attempts.jsonl',reservation);refs.append(reservation['attempt_id'])
     with guard:counts['attempt_count']+=1;counts['retry_count']+=bool(retry)
     event('attempt_reserved')
     if permission():
-     if retry==0:raise DispatchStopped()
+     if retry==0 or course_retry:raise DispatchStopped()
      parsed={'status':'failed','parsed_answer':None,'scale':'','citations':[],'usage':{'cost_usd':None}};break
-    with guard:counts['in_flight_count']+=1
+    with guard:
+     counts['in_flight_count']+=1;dispatch_state['peak']=max(dispatch_state['peak'],counts['in_flight_count'])
     sent=budget.transition(reservation,'sent');append(rd/'attempts.jsonl',sent);event('attempt_sent')
-    error=None;unknown=False
+    parsed=None;error=None;unknown=False;diagnostics={};request_started=time.monotonic()
     try:
      parsed=generate(c['config'],c['payload'],os.environ.get('FORMAL_API_KEY',''),c['selected_ids'],transport)
     except APIError as exc:
-     error=str(exc) if str(exc).startswith('http_') else 'transport_outcome_unknown';unknown=error=='transport_outcome_unknown'
-    except ProviderError as exc:error=str(exc) if str(exc) in PROVIDER_FAILURES else 'provider_validation_failed'
-    except Exception:error='transport_outcome_unknown';unknown=True
-    if fatal_provider_failure(error):
+     error=code_for(exc) if course_retry else str(exc) if str(exc).startswith('http_') else 'transport_outcome_unknown'
+     unknown=not course_retry and error=='transport_outcome_unknown'
+     from .http_transport import TransportFailure
+     diagnostics=dict(exc.diagnostics) if isinstance(exc,TransportFailure) else {}
+     diagnostics['exception_type']=type(exc).__name__
+    except ProviderError as exc:
+     error=str(exc) if str(exc) in PROVIDER_FAILURES else 'provider_validation_failed'
+     diagnostics={'exception_type':type(exc).__name__}
+    except Exception as exc:
+     error=code_for(exc) if course_retry else 'transport_outcome_unknown';unknown=not course_retry
+     diagnostics={'exception_type':type(exc).__name__}
+    if course_retry and not error and parsed and parsed['status'] in {'parse_error','truncated','api_error'}:error=parsed['status']
+    if error:
+     from datetime import datetime,timezone
+     append(rd/'request-errors.jsonl',{'time':datetime.now(timezone.utc).isoformat(),'attempt_id':reservation['attempt_id'],'task_id':c['task']['task_id'],'error_code':error,'elapsed_ms':int((time.monotonic()-request_started)*1000),'attempt_number':retry+1,'retryable':retryable(error),'diagnostics':diagnostics})
+     with guard:emit({'event_type':'request_error','phase':'generation','counts':dict(counts),'error_code':error})
+    if not unknown:save_receipt(rd,sent,parsed,error)
+    if fatal_provider_failure(error) and not (course_retry and retryable(error)):
      with guard:dispatch_state['fatal']=error
     failed=error is not None or parsed and parsed['status'] in {'parse_error','truncated','api_error'}
-    outcome={**budget.transition(reservation,'unknown' if unknown else 'completed'),'error_code':error,'response_id':parsed.get('response_id') if parsed else None,'usage':parsed.get('usage') if parsed else None,'parse_status':parsed.get('status') if parsed else 'failed'}
+    outcome={**budget.transition(reservation,'unknown' if unknown else 'completed'),'error_code':error,'response_id':parsed.get('response_id') if parsed else None,'usage':parsed.get('usage') if parsed else None,'parse_status':parsed.get('status') if parsed else 'failed',**({'remote_outcome':'unknown' if error.startswith('transport_') or error.startswith('stream_') else 'response_received','local_disposition':'retry_or_record_failure'} if course_retry and error and retryable(error) else {})}
     append(rd/'attempts.jsonl',outcome)
     with guard:
      counts['in_flight_count']-=1;counts['failure_count']+=bool(failed);technical.append(bool(failed))
      if unknown:dispatch_state['unknown']=True
     event('attempt_finished')
     if unknown:raise RunnerBlocked('unknown_attempt_requires_inspection')
-    if error in {'http_429','http_500','http_502','http_503','http_504'} and retry==0:continue
+    if course_retry and retryable(error) and retry<2:continue
+    if not course_retry and error in {'http_429','http_500','http_502','http_503','http_504'} and retry==0:continue
     if error:parsed={'status':'failed','parsed_answer':None,'scale':'','citations':[],'usage':{'cost_usd':None}}
     break
    result={'status':{'rejection':'refused'}.get(parsed['status'],parsed['status']),'answer':parsed['parsed_answer'],'scale':parsed.get('scale') or '', 'citations':parsed['citations']}
@@ -378,6 +441,10 @@ def _run_owned(spec,emit,control,transport,rd):
     group=sorted([t for t in tasks if t['repeat']==repeat],key=lambda t:t['task_id']);rng.shuffle(group);ordered.extend(group)
   atomic(rd/'dispatch-order.json',[t['task_id'] for t in ordered])
   stop=None;errors=[]
+  proof_path=rd/'parallel-validation.json';proof=json.loads(proof_path.read_text()) if proof_path.exists() else {}
+  probe=spec['kind']=='experiment' and concurrency>1 and not (proof.get('spec_sha')==digest(spec) and proof.get('passed') is True)
+  probe_submitted=0;probe_failures=counts['failure_count'];probe_retries=counts['retry_count']
+  if probe:event('parallel_probe_started')
   with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as pool:
    futures={};inflight_keys={}
    def drain_one():
@@ -397,7 +464,11 @@ def _run_owned(spec,emit,control,transport,rd):
     with guard:rolling=len(technical)==100 and sum(technical)>5
     if rolling:stop='pause';errors.append('rolling_failure_threshold');break
     c=prepared[task['task_id']]
-    if any(r.get('task_id')==task['task_id'] and r['state']=='completed' for r in pending.values()):errors.append('completed_attempt_prediction_missing');break
+    retry_saved=retry_pending(c)
+    restored=None if retry_saved else restored_result(rd,pending,task['task_id'],c['request_hash'])
+    if restored:
+     result,refs,usage,elapsed=restored;record=save(c,result,refs,usage,elapsed=elapsed);cache[reuse_key(c)]=record;continue
+    if not retry_saved and any(r.get('task_id')==task['task_id'] and r['state']=='completed' for r in pending.values()):errors.append('completed_attempt_prediction_missing');break
     if task['work_type']=='local_baseline':
      result=extract(c['q']['question'],[(u['evidence_id'],u['text']) for u in c['evidence']],legacy=task['condition']=='E1_legacy');save(c,result,provenance='local');continue
     if not transport and not os.environ.get('FORMAL_API_KEY'):errors.append('credential_required');break
@@ -414,6 +485,15 @@ def _run_owned(spec,emit,control,transport,rd):
     if requested:
      stop=dispatch_state['action'];break
     future=pool.submit(execute,c);futures[future]=c;inflight_keys[key]=future
+    if probe:
+     probe_submitted+=1
+     if probe_submitted==concurrency:
+      while futures:drain_one()
+      passed=not errors and not dispatch_state['fatal'] and not dispatch_state['unknown'] and counts['failure_count']==probe_failures and counts['retry_count']==probe_retries and dispatch_state['peak']>1
+      atomic(proof_path,{'spec_sha':digest(spec),'concurrency':concurrency,'peak_in_flight':dispatch_state['peak'],'calls':probe_submitted,'passed':passed,'attempt_count':counts['attempt_count']})
+      if not passed:
+       stop='pause';dispatch_state['action']='pause';errors.append('parallel_probe_failed');break
+      event('parallel_probe_passed');probe=False
    while futures:drain_one()
   stop=dispatch_state['action'] or stop
   if dispatch_state['rolling'] and 'rolling_failure_threshold' not in errors:errors.append('rolling_failure_threshold')
@@ -434,7 +514,7 @@ def _run_owned(spec,emit,control,transport,rd):
    event('evaluation_started','scoring')
    result=evaluate_subprocess(rd);return finish(result['state'],result.get('blocking_items',[]))
   return finish('completed')
- except (RunnerBlocked,BudgetError,ProviderError) as exc:return finish('blocked',[str(exc)])
+ except (RunnerBlocked,BudgetError,ProviderError,ValueError) as exc:return finish('blocked',[str(exc)])
  except Exception:return finish('failed',['worker_internal_error'])
 
 def evaluate_subprocess(rd):
