@@ -5,10 +5,12 @@ from uuid import uuid4
 from formal_src.contracts import RunRequest,ResolvedRunSpec,PreflightReport,RunResults,safe_json,identifier,ContractError
 from .jobs import JobStore,atomic,read,digest
 from .resources import ResourceRegistry
-class ApplicationService:
+from .onboarding import CourseWorkflow
+class ApplicationService(CourseWorkflow):
  def __init__(self,project_root,workspace,*,worker_command=None,catalog_transport=None,provider_transport=None):
   self.catalog_transport=catalog_transport;self.provider_transport=provider_transport
   self.project_root=Path(project_root).resolve();self.workspace=Path(workspace).resolve();self.jobs=JobStore(workspace);self.resources=ResourceRegistry(workspace);self.credentials={};self.session_id=str(uuid4());self.worker_command=worker_command;self.jobs.recover()
+  self._init_course_workflow()
  def _profile(self,pid):
   identifier(pid);p=self.workspace/'profiles'/f'{pid}.json'
   if p.exists():return read(p)
@@ -51,11 +53,20 @@ class ApplicationService:
   current=self._profile(profile_id);values=self._clean(values)
   if profile_id=='formal-v1' or current.get('status')=='frozen':raise ValueError('Immutable preset; clone to custom')
   if set(values)&{'profile_id','purpose','status','source_profile_id'}:raise ValueError('Profile identity immutable')
+  values=self._normalize_model_values(current,values)
   current.update(values);atomic(self.workspace/'profiles'/f'{profile_id}.json',current);return current
  def clone_profile(self,source_profile_id,values):
   source=self._profile(source_profile_id);values=self._clean(values)
   if set(values)&{'profile_id','purpose','status','source_profile_id'}:raise ValueError('Profile identity reserved')
+  values=self._normalize_model_values(source,values)
   source.update(values,profile_id='custom-'+str(uuid4()),purpose='custom',status='draft',source_profile_id=source_profile_id);atomic(self.workspace/'profiles'/(source['profile_id']+'.json'),source);return source
+ def _normalize_model_values(self,current,values):
+  if isinstance(values.get('provider'),dict):
+   model=values.get('models',current.get('models',{})).get('primary')
+   if model:
+    from .provider_checks import provider_values
+    return {**values,'provider':provider_values({**values['provider'],'model':model})}
+  return values
  def set_credential(self,api_key):
   if not isinstance(api_key,str) or not api_key.strip():raise ValueError('Credential required')
   ref=str(uuid4());self.credentials[ref]=api_key;return ref
@@ -67,23 +78,27 @@ class ApplicationService:
   if level not in ('catalog','generation'):raise ValueError('Invalid check level')
   key=self.credentials.get(credential_ref)
   if not key:return {'ready':False,'blocking_items':['credential_required'],'sent_attempts':0}
-  from formal_src.provider import validate_config,build_payload,generate,digest as request_digest
+  from formal_src.provider import normalize_config,build_probe_payload,generate,digest as request_digest
   from urllib.parse import urlsplit
-  endpoint=settings.get('endpoint') or settings.get('base_url','').rstrip('/')+'/responses'
-  config={**settings,'endpoint':endpoint,'max_output_tokens':settings.get('max_output_tokens',2048),'reserve_input_tokens':settings.get('reserve_input_tokens',32768)}
-  validate_config(config)
+  config=normalize_config({**settings,'max_output_tokens':settings.get('max_output_tokens',2048),'reserve_input_tokens':settings.get('reserve_input_tokens',32768)})
+  endpoint=config['endpoint']
   if level=='catalog':
-   catalog=endpoint.rsplit('/',1)[0]+'/models'
+   from urllib.parse import urlsplit,urlunsplit
+   url=urlsplit(endpoint);suffix='/chat/completions' if config['api_style']=='chat_completions' else '/responses'
+   base=url.path[:-len(suffix)]
+   catalog=urlunsplit((url.scheme,url.netloc,base.rstrip('/')+'/models','',''))
    if self.catalog_transport:raw=self.catalog_transport(catalog,key,settings.get('timeout_seconds',30))
    else:
     import urllib.request
     req=urllib.request.Request(catalog,headers={'Authorization':'Bearer '+key})
-    with urllib.request.urlopen(req,timeout=settings.get('timeout_seconds',30)) as response:raw=json.load(response)
+    from scripts.llm_execution import NoRedirect
+    with urllib.request.build_opener(NoRedirect()).open(req,timeout=settings.get('timeout_seconds',30)) as response:raw=json.load(response)
    ready=any(item.get('id')==config['model'] for item in raw.get('data',[]))
    return {'ready':ready,'blocking_items':[] if ready else ['model_not_in_catalog'],'sent_attempts':0,'level':'catalog'}
   from formal_src.budget import Budget
-  payload=build_payload(config,'What is the marker?', [{'evidence_id':'operational-probe','text':'The marker is READY.'}])
-  budget=Budget(self.workspace/'budget.jsonl');reservation=budget.reserve(str(uuid4()),'operational-synthetic-probe',request_digest(payload),'development_validation')
+  payload=build_probe_payload(config,image_url=settings.get('_probe_image'),nonce=settings.get('_probe_marker','READY'))
+  operation=str(uuid4());budget=Budget(self.workspace/'budget.jsonl',run_id=operation)
+  reservation=budget.reserve(operation,'operational-synthetic-probe',request_digest(payload),'development_validation')
   budget.transition(reservation,'sent')
   try:
    result=generate(config,payload,key,['operational-probe'],transport=self.provider_transport)
@@ -95,7 +110,7 @@ class ApplicationService:
    code=str(exc) if known else 'transport_outcome_unknown'
    if not code.replace('_','').isalnum() or len(code)>80:code='provider_generation_failed'
    return {'ready':False,'blocking_items':[code],'sent_attempts':1,'level':'generation','purpose':'operational_probe'}
-  ready=result.get('status')=='answered' and result.get('parsed_answer')=='READY'
+  ready=result.get('status')=='answered' and result.get('parsed_answer')==settings.get('_probe_marker','READY')
   return {'ready':ready,'blocking_items':[] if ready else ['operational_marker_not_answered'],'sent_attempts':1,'level':'generation','purpose':'operational_probe','model':config['model'],'response_id':result.get('response_id')}
  def parallel_verified(self,profile):
   from .provider_checks import parallel_verified
@@ -127,6 +142,10 @@ class ApplicationService:
   try:validate_models(adopted.get('models'),{t['model_role'] for t in plan['units'] if t['work_type']=='generation'})
   except ValueError as exc:return dict(frozen=False,blocking_items=[str(exc)])
   if not self.parallel_verified(adopted):return dict(frozen=False,blocking_items=['concurrency_not_verified'])
+  from .provider_checks import provider_ready
+  vision=any(t.get('condition') in ('E3','I','M2_E3') for t in plan['units'])
+  secondary=adopted.get('models',{}).get('secondary') if any(t.get('model_role')=='secondary' for t in plan['units']) else None
+  if not provider_ready(self.workspace,adopted,require_vision=vision,secondary=secondary):return dict(frozen=False,blocking_items=['provider_capabilities_unverified'])
   states=(read(path) for path in self.jobs.runs.glob('*/state.json'))
   if any(s.get('kind')=='experiment' and s.get('state') in ('queued','validating','running','pause_requested','cancel_requested') for s in states):
    return dict(frozen=False,blocking_items=['execution_slot_busy'])
@@ -136,8 +155,8 @@ class ApplicationService:
   record=self.resources.record(resource_set_id)
   from formal_src.course_policy import automatic
   course=automatic(record['manifest']);audit_sha=None
-  if course:draft={**draft,'review_policy':'automatic_course'}
-  else:
+  draft={**draft,'review_policy':'automatic_course' if course else 'human_reviewed'}
+  if not course:
    from formal_src.verification import validate_audit_plan,_digest
    bindings=[b for b in record['manifest']['resources'] if Path(b['path']).name=='audit_plan.json' and b['kind']=='review']
    if len(bindings)!=1:return dict(frozen=False,blocking_items=['preregistered_audit_plan_required'])
@@ -166,9 +185,14 @@ class ApplicationService:
   except (ValueError,TypeError,KeyError,OSError):return 0,categories,['budget_check_failed']
  def preflight(self,request):
   return self._preflight(request)
- def _preflight(self,request,remaining_generations=None):
+ def _preflight(self,request,remaining_generations=None,run_id=None):
   q=RunRequest.from_dict(request);p=self._profile(q['profile_id']);r=self.check_resources(q['resource_set_id']);blocks=[]
   if q['kind']=='experiment' and not self.worker_command and not self.parallel_verified(p):blocks.append('concurrency_not_verified')
+  if q['kind']=='experiment' and not self.worker_command and self.parallel_verified(p):
+   from .provider_checks import provider_ready
+   record=self.resources.record(q['resource_set_id']);scope=record['manifest'].get('execution_scope') if record else None
+   secondary=p.get('models',{}).get('secondary') if scope!='main_only' else None
+   if not provider_ready(self.workspace,p,require_vision=True,secondary=secondary):blocks.append('provider_capabilities_unverified')
   if not self._worker():blocks.append('kernel_unavailable')
   integrity_verify=q['kind']=='verify' and read(self.jobs.directory(q['source_run_id'])/'spec.json',{}).get('kind')=='demo'
   if q['kind'] not in r['ready_for'] and not (integrity_verify and 'demo' in r['ready_for']):blocks+=r['blocking_items'] or ['resources_not_ready']
@@ -195,11 +219,20 @@ class ApplicationService:
    source=self.jobs.directory(q['source_run_id'])
    if not (source/'sealed.json').exists():blocks.append('source_not_sealed')
   remaining,categories,budget_blocks=self._budget();blocks+=budget_blocks
-  logical=(3600 if self.resources.record(q['resource_set_id'])['manifest'].get('execution_scope')=='main_only' else 6600) if q['kind']=='experiment' else sum(g!='E1' for g in q['demo_input']['groups']) if q['kind']=='demo' else 0
+  record=self.resources.record(q['resource_set_id']);manifest=record['manifest'] if record else {}
+  logical=(3600 if manifest.get('execution_scope')=='main_only' else 6600) if q['kind']=='experiment' else sum(g!='E1' for g in q['demo_input']['groups']) if q['kind']=='demo' else 0
   additional=logical if remaining_generations is None else remaining_generations
+  from formal_src.course_policy import automatic
+  course=automatic(manifest) or automatic(p)
+  if course:
+   used=0
+   if run_id:
+    from formal_src.budget import peek_latest
+    used=sum(row.get('run_id')==run_id for row in peek_latest(self.workspace/'budget.jsonl').values())
+   remaining=max(0,logical*3-used)
   if additional>remaining:blocks.append('budget_exhausted')
-  if q['kind']=='demo' and additional and categories['retry_demo']+additional>900:blocks.append('retry_demo_budget_exhausted')
-  if categories['development_validation']>500 or categories['retry_demo']>900:blocks.append('category_budget_exceeded')
+  if not course and q['kind']=='demo' and additional and categories['retry_demo']+additional>900:blocks.append('retry_demo_budget_exhausted')
+  if not course and (categories['development_validation']>500 or categories['retry_demo']>900):blocks.append('category_budget_exceeded')
   return PreflightReport.from_dict(dict(schema_version=1,ready=not blocks,blocking_items=sorted(set(blocks)),profile_hash=digest(p),estimated_logical_generations=logical,estimated_additional_attempts=additional,budget_remaining=remaining,price_status='unknown'))
  def start_run(self,request,credential_ref=None):
   with self.jobs.lock():
@@ -214,6 +247,8 @@ class ApplicationService:
   if q['kind']=='experiment' and p.get('status')=='frozen' and not self.worker_command:
    try:
     plan=self._compiled_plan(q['resource_set_id']);plan.update(status='frozen',executable=True,blocking_items=[])
+    from formal_src.course_policy import automatic
+    if automatic(p):plan['accounting_policy']={'scope':'run','max_attempts_per_generation':3,'attempt_limit':plan['logical_generation_count']*3,'historical_caps_enforced':False}
    except ValueError:blocks.append('formal_plan_unavailable')
   spec=ResolvedRunSpec.from_dict(dict(q,run_id=rid,purpose='software_test' if self.worker_command else 'verification' if q['kind']=='verify' else 'demo' if q['kind']=='demo' else p.get('purpose','custom'),resolved_config=p,code_sha=self._code_sha(),resource_sha=digest(record['manifest'] if record else {}),freeze_sha=p.get('freeze_sha') if q['kind']=='experiment' else None,plan=plan,logical_generation_count=pre['estimated_logical_generations'],output_relative_path='runs/'+rid))
   s,new=self.jobs.register(q,spec,blocks)
@@ -253,7 +288,7 @@ class ApplicationService:
    request={key:spec[key] for key in RunRequest.required}
    started=(d/'process.json').exists()
    remaining=max(0,s['logical_generation_count']-s['completed_logical_count']) if started else None
-   blocks+=self._preflight(request,remaining_generations=remaining)['blocking_items']
+   blocks+=self._preflight(request,remaining_generations=remaining,run_id=run_id)['blocking_items']
    if self._code_sha()!=spec['code_sha']:blocks.append('code_changed')
    record=self.resources.record(spec['resource_set_id'])
    if digest(record['manifest'] if record else {})!=spec['resource_sha']:blocks.append('resources_changed')

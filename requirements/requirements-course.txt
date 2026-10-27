@@ -1,0 +1,3 @@
+# Complete runtime for the fixed BM25 + MiniLM course experiment.
+-r requirements-app.txt
+-r requirements-encoder-runtime.txt

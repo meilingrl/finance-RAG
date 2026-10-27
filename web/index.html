@@ -41,7 +41,7 @@
     <div class="mast-top"><span class="index">01 / 04</span><span class="eyebrow">Configuration &amp; Resources</span></div>
     <div class="mast-bottom">
       <h2 id="h-config" tabindex="-1">配置<br>与资源</h2>
-      <p class="lede">登记资料即可运行 E1 本地问答，无需密钥。E2–E4 和正式实验还需要模型接口。</p>
+      <p class="lede">固定实验资料会自动下载、校验并登记。填写模型与密钥后即可准备实验。</p>
       <p class="scene-status" id="status-config">尚未登记资料</p>
       <button type="button" class="next" data-goto="demo">单题演示 →</button>
     </div>
@@ -49,16 +49,18 @@
   <div class="body">
     <section class="block">
       <h3><span class="mark">A</span>登记资料</h3>
-      <p class="hint">选择一个资料包，软件会逐一核对文件 SHA。</p>
+      <p id="dataSetupStatus" class="status-box" role="status">正在检查固定实验资料…</p>
+      <button id="dataRetry" class="secondary" hidden>重新准备固定资料</button>
       <div class="actions">
-        <button id="reviewed">使用 E1–E4 开发演示包</button>
-        <button id="legacy" class="secondary">旧开发材料（未接入审核）</button>
-        <button id="prepared" class="secondary">使用正式资料候选包</button>
+        <button id="reviewed">开发演示（12 题）</button>
+        <button id="legacy" class="secondary" hidden>旧开发材料（未接入审核）</button>
+        <button id="prepared" class="secondary">固定主集（200 题）</button>
         <p class="hint">开发演示包：4 份财报、12 题，含裁图、结构及本地 MiniLM。仅用于开发演示，正式实验使用独立资料。</p>
       </div>
-      <label>或填写本地资源目录
+      <details><summary>高级：其他资料目录</summary><label>或填写本地资源目录
         <span class="input-row"><input id="resourcePath" value="data/processed/nonllm-pilot-v5"><button id="register" class="secondary">登记</button></span>
       </label>
+      </details>
       <div id="resources" class="status-box">尚未登记资源</div>
       <details><summary>资源校验明细</summary><pre id="resourceDetails"></pre></details>
     </section>
@@ -67,18 +69,26 @@
       <label>当前模型方案<select id="profiles"></select></label>
       <p id="profile" class="hint">当前方案：formal-v1 · draft</p>
       <div class="grid">
-        <label>Responses 接口完整地址<input id="endpoint" type="url" placeholder="https://服务地址/v1/responses"></label>
+        <label>模型服务地址<input id="endpoint" type="url" placeholder="https://服务地址（也可填写完整接口）"></label>
         <label>主模型<input id="model" placeholder="填写渠道实际模型名称"></label>
         <label>对照模型（完整实验使用，主集可留空）<input id="secondary" placeholder="尚未验证"></label>
         <label>正式实验并发数（1–32）<input id="concurrency" type="number" min="1" max="32" step="1" value="4"></label>
         <label>会话密钥<input id="key" type="password" autocomplete="off" placeholder="E1 无需密钥"></label>
       </div>
+      <details><summary>高级：生成参数</summary><div class="grid">
+        <label>接口协议<select id="providerApiStyle"><option value="">自动识别</option><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select></label>
+        <label>输出上限<input id="maxOutput" type="number" min="1" value="2048"></label>
+        <label>请求超时（秒）<input id="providerTimeout" type="number" min="1" value="120"></label>
+        <label>推理强度（留空由服务决定）<input id="reasoningEffort" value="low"></label>
+        <label>JSON 输出<select id="responseFormat"><option value="auto">自动协商</option><option value="json_schema">JSON Schema</option><option value="json_object">JSON Object</option></select></label>
+        <label><input id="providerStream" type="checkbox" checked>流式响应</label>
+      </div></details>
       <p class="hint">密钥仅保存在本次服务会话内；刷新页面后可继续运行，服务重启需重新填写。保存配置会显式创建自定义方案。</p>
       <div class="actions">
         <button id="save">保存为自定义方案</button>
-        <button id="check" class="secondary">保存并检查连通与并发</button>
+        <button id="check" class="secondary">检查模型能力与并发</button>
       </div>
-      <p class="hint">单题演示固定串行。检查先发 1 次合成请求，再按所选并发数测试；并发为 1 时仅检查 1 次。修改配置后需重新检查。</p>
+      <p class="hint">单题演示固定串行。检查实际验证文本、图像及所选并发，记录调用次数；准备正式实验时也会自动完成这些检查。</p>
       <p id="providerCheckStatus" class="hint" role="status"></p>
       <details><summary>接口与并发检查明细</summary><pre id="providerCheckDetails"></pre></details>
     </section>
@@ -161,14 +171,14 @@
   <div class="body">
     <dl class="figures">
       <div><dt>本次计划生成</dt><dd id="plannedGenerations">—</dd></div>
-      <div><dt>新阶段尝试上限</dt><dd>8,000</dd></div>
-      <div><dt>剩余尝试额度</dt><dd id="budgetRemaining">—</dd></div>
+      <div><dt>本次尝试上限（含重试）</dt><dd id="plannedAttemptLimit">—</dd></div>
+      <div><dt>本次剩余尝试</dt><dd id="budgetRemaining">—</dd></div>
     </dl>
     <section class="block" id="experimentStart">
       <h3><span class="mark">A</span>启动步骤</h3>
       <ol class="checklist">
-        <li><div><strong>冻结正式方案</strong><p class="hint">采用已保存的主模型与对照模型；更换配置后重新检查并冻结。</p></div><button id="freeze" class="secondary">检查冻结</button></li>
-        <li><div><strong>正式预检</strong><p class="hint">核对冻结配置、代码与资料身份和调用额度。</p></div><button id="preflight" class="secondary">检查预设</button></li>
+        <li hidden><div><strong>冻结正式方案</strong><p class="hint">采用已保存的主模型与对照模型；更换配置后重新检查并冻结。</p></div><button id="freeze" class="secondary">检查冻结</button></li>
+        <li><div><strong>准备正式实验</strong><p class="hint">自动检查固定主集、模型能力与并发，并保存本次运行配置。</p></div><button id="preflight" class="secondary">准备并检查</button></li>
         <li><div><strong>启动正式实验</strong><p class="hint">预检通过后可用；启动运行已冻结的实验范围。</p></div><button id="experiment" disabled>启动</button></li>
       </ol>
       <div id="preflightResult" class="status-box">等待预检</div>

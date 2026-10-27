@@ -20,9 +20,27 @@ def create_app(service):
  @app.exception_handler(Exception)
  async def failure(request,exc):return JSONResponse({'code':'request_failed','message':'Request could not be completed','retryable':False,'blocking_items':[]},400)
  @app.exception_handler(ValueError)
- async def invalid(request,exc):return JSONResponse(exc.to_dict() if isinstance(exc,ContractError) else {'code':'invalid_request','message':'Invalid request','retryable':False,'blocking_items':[]},400)
+ async def invalid(request,exc):
+  messages={'provider_limits_missing':'输出上限和输入容量应为正整数',
+   'provider_timeout_invalid':'请求超时应为大于零的秒数','provider_stream_invalid':'请选择流式或非流式响应',
+   'provider_endpoint_invalid':'请填写有效的 HTTPS 模型服务地址',
+   'provider_api_style_invalid':'请选择自动识别、Responses 或 Chat Completions 协议',
+   'provider_api_style_mismatch':'接口地址与所选协议不同，请选择自动识别或对应协议',
+   'provider_response_format_invalid':'请选择自动协商、JSON Schema 或 JSON Object',
+   'provider_reasoning_invalid':'推理参数格式不正确，请检查高级生成参数',
+   'model_not_adopted':'请填写主模型名称','concurrency_invalid':'并发数应为 1–32 的整数',
+   'capability_unsupported':'所选模型不支持当前输入或生成方式，请使用支持该能力的模型'}
+  code=str(exc)
+  if code in messages:return JSONResponse({'code':code,'message':messages[code],'retryable':False,'blocking_items':[code]},400)
+  return JSONResponse(exc.to_dict() if isinstance(exc,ContractError) else {'code':'invalid_request','message':'请求参数无效，请检查填写的配置','retryable':False,'blocking_items':[]},400)
  @app.get('/api/v1/capabilities')
  def capabilities():return service.capabilities()
+ @app.get('/api/v1/data/status')
+ def data_status():return service.data_status()
+ @app.post('/api/v1/data/prepare')
+ def data_prepare():return service.begin_fixed_data_setup()
+ @app.post('/api/v1/experiments/prepare')
+ def experiment_prepare(values:dict):return service.prepare_experiment(values.get('model_profile_id','formal-v1'),values.get('resource_set_id'),values.get('credential_ref'))
  @app.put('/api/v1/settings')
  def settings(values:dict):return service.save_settings(values)
  @app.put('/api/v1/profiles/{pid}')

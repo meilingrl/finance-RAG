@@ -355,9 +355,14 @@ class FormalFixTests(unittest.TestCase):
     elif field=='stream':config['provider']['stream']=False
     elif field=='prompt':config['prompt_sha']='0'*64
     else:config['code_sha']=spec['code_sha']='0'*64
-    if field!='model':
+    if field in ('prompt','disk'):
      config['freeze_sha']=None;config['freeze_sha']=digest(config);spec['freeze_sha']=config['freeze_sha']
     with self.assertRaises(RunnerBlocked):formal_tasks(spec,input_package(rd)[0])
+    if field in ('cap','reasoning','stream'):
+     # A changed runtime setting needs a new identity; valid settings themselves
+     # are configurable rather than fixed to the historical 2048/low/true recipe.
+     config['freeze_sha']=None;config['freeze_sha']=digest(config);spec['freeze_sha']=config['freeze_sha']
+     self.assertTrue(formal_tasks(spec,input_package(rd)[0]))
 
  def test_pause_and_cancel_before_retry_settle_known_attempt(self):
   from formal_src.runner import run

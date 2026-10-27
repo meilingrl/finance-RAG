@@ -67,7 +67,7 @@ class ConfiguredModelTests(unittest.TestCase):
    service=ApplicationService(ROOT,td)
    profile=service.clone_profile('formal-v1',{'models':{'primary':'deepseek-flash','secondary':None},'provider':helper.options()['provider']})
    plan={'units':[{'work_type':'generation','model_role':'secondary'}]}
-   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':{'review_policy':'automatic_course'}}),patch.object(service,'_compiled_plan',return_value=plan),patch.object(service,'parallel_verified',return_value=True):
+   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':{'review_policy':'automatic_course'}}),patch.object(service,'_compiled_plan',return_value=plan),patch.object(service,'parallel_verified',return_value=True),patch('app.provider_checks.provider_ready',return_value=True):
     result=service.freeze_profile('formal-v1','synthetic',profile['profile_id'])
    self.assertFalse(result['frozen']);self.assertIn('formal_model_missing_secondary',result['blocking_items'])
 
@@ -92,7 +92,7 @@ class ConfiguredModelTests(unittest.TestCase):
    plan={'units':[{'work_type':'generation','model_role':'primary'}]}
    code=service._code_sha()
    def slow_identity():time.sleep(.03);return code
-   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':manifest}),patch.object(service,'_compiled_plan',return_value=plan),patch.object(service,'parallel_verified',return_value=True),patch.object(service,'_code_sha',side_effect=slow_identity):
+   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':manifest}),patch.object(service,'_compiled_plan',return_value=plan),patch.object(service,'parallel_verified',return_value=True),patch('app.provider_checks.provider_ready',return_value=True),patch.object(service,'_code_sha',side_effect=slow_identity):
     self.assertTrue(service.freeze_profile('formal-v1','synthetic',profiles[0]['profile_id'])['frozen'])
     with ThreadPoolExecutor(max_workers=2) as pool:
      results=list(pool.map(lambda p:service.freeze_profile('formal-v1','synthetic',p['profile_id']),profiles[1:]))
@@ -106,7 +106,7 @@ class ConfiguredModelTests(unittest.TestCase):
    service=ApplicationService(ROOT,td)
    profile=service.clone_profile('formal-v1',{'models':{'primary':'deepseek-flash','secondary':None},'provider':helper.options()['provider']})
    atomic(Path(td)/'runs'/'older-active'/'state.json',{'kind':'experiment','state':'validating'})
-   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':{'review_policy':'automatic_course'}}),patch.object(service,'_compiled_plan',return_value={'units':[{'work_type':'generation','model_role':'primary'}]}),patch.object(service,'parallel_verified',return_value=True),patch.object(service,'find_runs',return_value={'runs':[]}):
+   with patch.object(service,'check_resources',return_value={'ready_for':['freeze']}),patch.object(service.resources,'record',return_value={'manifest':{'review_policy':'automatic_course'}}),patch.object(service,'_compiled_plan',return_value={'units':[{'work_type':'generation','model_role':'primary'}]}),patch.object(service,'parallel_verified',return_value=True),patch('app.provider_checks.provider_ready',return_value=True),patch.object(service,'find_runs',return_value={'runs':[]}):
     result=service.freeze_profile('formal-v1','synthetic',profile['profile_id'])
    self.assertFalse(result['frozen']);self.assertIn('execution_slot_busy',result['blocking_items'])
 

@@ -33,17 +33,20 @@ def runtime_configuration(spec):
     from urllib.parse import urlsplit
     from .run_plan import CANONICAL_PROFILE,content_sha
     profile=spec['resolved_config'];provider=profile['provider']
-    allowed={'endpoint','max_output_tokens','reserve_input_tokens','reasoning_effort','stream','timeout_seconds','max_request_bytes'}
+    from .provider import PROVIDER_FIELDS,normalize_config
+    allowed=PROVIDER_FIELDS
     if not isinstance(provider,dict) or set(provider)-allowed:
         raise ValueError('Unexportable provider runtime fields')
     endpoint=urlsplit(provider.get('endpoint',''))
     if (endpoint.scheme not in {'https','http'} or not endpoint.hostname or endpoint.username
             or endpoint.password or endpoint.query or endpoint.fragment):
         raise ValueError('Unexportable provider endpoint')
+    normalize_config({**provider,'model':profile['models']['primary']})
     for field,value in provider.items():
         if field=='endpoint':continue
+        if field in {'api_style','wire_api','response_format','chat_token_field','capabilities','model_aliases','reasoning'}:continue
         if field=='reasoning_effort':
-            if value not in {'none','minimal','low','medium','high','xhigh','max','ultra'}:raise ValueError('Unexportable provider reasoning value')
+            if value is not None and not isinstance(value,str):raise ValueError('Unexportable provider reasoning value')
         elif field=='stream':
             if type(value) is not bool:raise ValueError('Unexportable provider stream value')
         elif type(value) not in (int,float) or value<=0:
@@ -56,7 +59,8 @@ def runtime_configuration(spec):
             'runtime_profile_sha256':content_sha(profile),
             'code_sha':profile['code_sha'],'prompt_sha':profile['prompt_sha'],
             'resource_manifest_sha':profile['resource_manifest_sha'],'freeze_sha':profile['freeze_sha'],
-            'model_provider_identity':identity,'model_provider_sha256':content_sha(identity)}
+            'model_provider_identity':identity,'model_provider_sha256':content_sha(identity),
+            'execution_accounting':spec.get('plan',{}).get('accounting_policy',{'scope':'legacy_shared'})}
 
 
 def resource_sha_index(spec, summary, manifest):

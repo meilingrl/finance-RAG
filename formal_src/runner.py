@@ -361,7 +361,9 @@ def _run_owned(spec,emit,control,transport,rd):
     counts['completed_local_count' if t['model_role']=='local' else 'completed_logical_count']+=1
     counts['reuse_count']+=provenance=='same_round_reuse'
    event('logical_unit_completed');return record
-  budget=Budget(rd.parent.parent/'budget.jsonl');dispatch_state={'action':None,'unknown':False,'rolling':False,'fatal':None,'peak':0}
+  attempt_limit=max(1,sum(t['work_type']=='generation' for t in tasks)*3)
+  budget=Budget(rd.parent.parent/'budget.jsonl',run_id=spec['run_id'],total=attempt_limit,caps={name:attempt_limit for name in ('formal','development_validation','retry_demo')}) if course_retry else Budget(rd.parent.parent/'budget.jsonl')
+  dispatch_state={'action':None,'unknown':False,'rolling':False,'fatal':None,'peak':0}
   class DispatchStopped(Exception):pass
   def permission():
    requested=action()

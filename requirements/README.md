@@ -4,7 +4,8 @@
 
 | 清单 | 用途 |
 | --- | --- |
-| `requirements-app.txt` | 网页应用直接依赖，首次安装入口 |
+| `requirements-course.txt` | 固定课程实验完整依赖，首次安装入口（含网页与 MiniLM） |
+| `requirements-app.txt` | 仅网页应用依赖，用于无需编码器的轻量工程检查 |
 | `requirements-encoder-runtime.txt` | 可选 MiniLM 编码器直接依赖 |
 | `requirements-app-lock-macos-py312.txt` | macOS Python 3.12 应用依赖锁 |
 | `requirements-app-lock-linux-aarch64-py312.txt` | Linux aarch64 Python 3.12 应用依赖锁 |

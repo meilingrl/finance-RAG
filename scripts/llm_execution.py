@@ -201,27 +201,46 @@ def parse_response(raw, selected_ids):
     result = {'status': 'parse_error', 'parsed_answer': None, 'scale': None,
               'citations': [], 'truncated': False, 'error': 'invalid_response_schema'}
     try:
+        if not isinstance(raw, dict):
+            return result
         if 'output' in raw:
+            if raw.get('incomplete_details') is not None and not isinstance(raw['incomplete_details'], dict):
+                return result
             if raw.get('status') == 'incomplete' and (raw.get('incomplete_details') or {}).get('reason') == 'max_output_tokens':
                 return {**result, 'status': 'truncated', 'truncated': True, 'error': 'output_token_limit'}
+            if raw.get('status') == 'incomplete' and (raw.get('incomplete_details') or {}).get('reason') == 'content_filter':
+                return {**result, 'status': 'rejection', 'error': None}
             if raw.get('status') != 'completed':
                 return {**result, 'status': 'api_error', 'error': 'response_not_completed'}
+            if not isinstance(raw['output'], list) or not all(isinstance(item, dict) for item in raw['output']):
+                return result
             parts = [c for item in raw['output'] if item.get('type') == 'message' and item.get('role') == 'assistant'
                      for c in item.get('content', [])]
+            if not all(isinstance(c, dict) for c in parts):
+                return result
             if any(c.get('type') == 'refusal' for c in parts):
                 return {**result, 'status': 'rejection', 'error': None}
             text = ''.join(c['text'] for c in parts if c.get('type') == 'output_text')
             raw = {'choices': [{'finish_reason': 'stop', 'message': {'content': text}}]}
-        if len(raw['choices']) != 1:
+        if not isinstance(raw['choices'], list) or len(raw['choices']) != 1:
             return result
         choice = raw['choices'][0]
+        if not isinstance(choice, dict) or not isinstance(choice.get('message'), dict):
+            return result
         if choice.get('finish_reason') == 'length':
             return {**result, 'status': 'truncated', 'truncated': True, 'error': 'output_token_limit'}
         if choice['message'].get('refusal') or choice.get('finish_reason') == 'content_filter':
             return {**result, 'status': 'rejection', 'error': None}
         if choice.get('finish_reason') != 'stop':
             return result
-        value = json.loads(choice['message']['content'])
+        text = choice['message']['content']
+        if isinstance(text, list):
+            if not all(isinstance(part, dict) for part in text):
+                return result
+            if any(part.get('type') == 'refusal' for part in text):
+                return {**result, 'status': 'rejection', 'error': None}
+            text = ''.join(part['text'] for part in text if part.get('type') in ('text', 'output_text'))
+        value = json.loads(text)
         if not isinstance(value, dict) or set(value) != {'answer', 'scale', 'citations', 'abstained'}:
             return result
         if (type(value['abstained']) is not bool or not isinstance(value['scale'], str)

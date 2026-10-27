@@ -54,9 +54,8 @@ def validate_frozen_profile(profile:dict,expected_freeze_sha:str|None=None)->boo
             raise ValueError('Actual runtime identity is required')
     validate_models(profile['models'])
     provider=profile['provider']
-    if (not isinstance(provider,dict) or provider.get('max_output_tokens')!=2048
-            or provider.get('reasoning_effort')!='low' or provider.get('stream') is not True):
-        raise ValueError('Generation protocol differs from declared formal protocol')
+    if not isinstance(provider,dict):
+        raise ValueError('Generation protocol is invalid')
     from .provider import validate_config
     validate_config({**provider,'model':profile['models']['primary']})
     if type(profile.get('concurrency')) is not int or not 1<=profile['concurrency']<=32:

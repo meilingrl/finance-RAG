@@ -1,0 +1,1277 @@
+{
+  "archive_bytes": 264275858,
+  "archive_parts": [
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0000",
+      "bytes": 1048576,
+      "sha256": "5ab601027e863c70abc1e7383c7dc9f147522b695e8cada1e85010a7c68a98d6"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0001",
+      "bytes": 1048576,
+      "sha256": "c463a5540ca462243e45af5bfea7136ed16407bff419c7621e26136526d08682"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0002",
+      "bytes": 1048576,
+      "sha256": "614e8d234301fca973c0ceb231e57338a135372a76bf03bc5b8255a3b4ad81d5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0003",
+      "bytes": 1048576,
+      "sha256": "8c906be3bdfa17a2f425ca4fec505726616c88371c44d84542c585c599ed4b67"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0004",
+      "bytes": 1048576,
+      "sha256": "ad57990bbc01b26a3d38bf64f7a38ad90d108781901137dc8aa6f5a1fbebe879"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0005",
+      "bytes": 1048576,
+      "sha256": "fd615129f13e5322d5c2b78e41f0baa8eda05db5ff89dbbcee24f1cc68e4d276"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0006",
+      "bytes": 1048576,
+      "sha256": "4104790cbf64708d0a39a9e4a9213a7900bd89592c8cca0fe2160783faea7e3a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0007",
+      "bytes": 1048576,
+      "sha256": "3ddd713f79a361906738b6685729105a93d2fb2d8af6d25c3f8aaef0479adb5d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0008",
+      "bytes": 1048576,
+      "sha256": "cc579c23a354970033a4bc5ce174823e84d1152bf4f9fc576b22b584afc0bca4"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0009",
+      "bytes": 1048576,
+      "sha256": "bdd694cfcba44ae38df25dc40463af0543f7da399e3a2bc5f8a5b0a45b1fc9b8"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0010",
+      "bytes": 1048576,
+      "sha256": "da1a41d8e4b2288168cb2bda88b4c49c27a06156c19a09e4bd231c81c4831ae6"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0011",
+      "bytes": 1048576,
+      "sha256": "5fa8f8f2b778b944f3add53e845af44ccf96a69ef503c0d82897a26a2be5e5d7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0012",
+      "bytes": 1048576,
+      "sha256": "d7f6345081ca9de25c215f1f95d64140c38e3c8968ea82e2f1a0118defe2c6b5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0013",
+      "bytes": 1048576,
+      "sha256": "4a3b604cfd8510496910f8fe560b8705b7cac50015040d42faad9bd2493b8320"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0014",
+      "bytes": 1048576,
+      "sha256": "f93ad1ee5c5cdd20bfc7f2c78359710693d122131cc70216c9a5ce1ce9900fcd"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0015",
+      "bytes": 1048576,
+      "sha256": "661d9ba32f84783ddfb4f4a2a697857b38184a3e286b55168e470504cef9cd98"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0016",
+      "bytes": 1048576,
+      "sha256": "8b45ab60982f5c9246799ef187cbebc0cbd030d66607af1d11346aca477a2fab"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0017",
+      "bytes": 1048576,
+      "sha256": "85e327a5694df0d03dba57e5d16937e5d1611c28f4b417b11b67e4156571a8c1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0018",
+      "bytes": 1048576,
+      "sha256": "06f4a6afbc71af7787d578860d228e33d466c4977ef2fa68f8cc18996fda2d8e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0019",
+      "bytes": 1048576,
+      "sha256": "d3b220ebe86a2a7e8a9cde89871a2c9af4f5ccb1657a0fe036105613d1b31b72"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0020",
+      "bytes": 1048576,
+      "sha256": "4f014e7e825f18371342fe474d72c33b77236080d90115485d282c784cabf047"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0021",
+      "bytes": 1048576,
+      "sha256": "3dca5371a4ffbe68efee433bf71aeb7b0d87efc12c4fdf4567d2fd3605b4b5fa"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0022",
+      "bytes": 1048576,
+      "sha256": "a5b486cea4c495deaf35b74f41b48286c6aebc6d5914790e8190a9aecac7ad9b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0023",
+      "bytes": 1048576,
+      "sha256": "850daf8813ec46e4eaef390209af097e4ae21073efacfb16b0b6203218594f19"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0024",
+      "bytes": 1048576,
+      "sha256": "3b2a6879b8fb6cc6c830cb816452e97287a480e30117c2d54046f8540c0000f3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0025",
+      "bytes": 1048576,
+      "sha256": "1b2ed9b46ceceef70fe1e211452717e88b56f7f4ec131731228c20845e75bf7c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0026",
+      "bytes": 1048576,
+      "sha256": "0a37b652f5a0eda7c3dbdf2a6eb85b36fcad748b22e0e33b3cdad6e713a1f693"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0027",
+      "bytes": 1048576,
+      "sha256": "e2849274ebaa71d5d07794a6b1fe3d9bcdc8c069c12304c4526fb5e4b8b305eb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0028",
+      "bytes": 1048576,
+      "sha256": "f387b76d6a396de1e7614482928ecd113ccd08a0ebe3a1ff4a9c1b97b86a5c4b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0029",
+      "bytes": 1048576,
+      "sha256": "49d0703d5540e5f8a3bb5a3e95249277895741ad5e0db7c664c720bdbf01cde6"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0030",
+      "bytes": 1048576,
+      "sha256": "f2c6486bd20ceb1e5840ca0ab848e708cb8834b69f74a26495a6ba8b94508835"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0031",
+      "bytes": 1048576,
+      "sha256": "9f1a8501ee31ed27613809f695a726e1a7572e6a8e9dbbedf09fb48864d2b34d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0032",
+      "bytes": 1048576,
+      "sha256": "44e468b7a9dde4ca41bf08661308abfe6f48c95c8b3a0c328941a8d6add6bb2c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0033",
+      "bytes": 1048576,
+      "sha256": "c31e8277e30b25c9368d5997636aeb3f0a7f4031a697ded6a368507c3e1da5c3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0034",
+      "bytes": 1048576,
+      "sha256": "da18cfdb0490464096a2fff88ca85adceeaa45274dd7c36d2b6eaa10dc79ec64"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0035",
+      "bytes": 1048576,
+      "sha256": "fb5cba670fbd70c6244859abf3fe5e1e9370d9a123f332fcf0022dd81a1a2c2b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0036",
+      "bytes": 1048576,
+      "sha256": "cbcd825405998fa1b064ad31ab51b6e4adca8bdfe9e5c2aecf40d507a86f5d45"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0037",
+      "bytes": 1048576,
+      "sha256": "881f253a44db3c82bb99fd5bf86843f70c2f8be05bf9efe5155ac1058a93da63"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0038",
+      "bytes": 1048576,
+      "sha256": "530f0b2b2d0b6bedad89543aa45a6b9abacb9c935e3e0bd0312e4dc60f08bf1f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0039",
+      "bytes": 1048576,
+      "sha256": "7fb878226d11ba393f89e2ff75464374f8de489b81edcad914b4413124327264"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0040",
+      "bytes": 1048576,
+      "sha256": "8fe7ba51b6cc940db3457ccbb2908f9762b77cef737ed79541c7b9f50214d284"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0041",
+      "bytes": 1048576,
+      "sha256": "61cce468bd83f23cfebcc074da324f3baec4b8f166526be92ff2550dfc0d9688"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0042",
+      "bytes": 1048576,
+      "sha256": "78fd9fa46affa5cf35f804df5823796d74ba8d769c4c37702cd7adc2a3fcd66b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0043",
+      "bytes": 1048576,
+      "sha256": "bda1bb93a608cfa6ee0849d3816c2909b2b93e51af7780fa1f82f2983dcaf5c0"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0044",
+      "bytes": 1048576,
+      "sha256": "c7ea3e5ed74122116c207a5c8efeab5eaaef02ad4430b0b927429399c5f7ec2e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0045",
+      "bytes": 1048576,
+      "sha256": "a220b990ea8675c24c331dd8afecd4bec934d14c8f893d6b7e4b1d72379cec87"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0046",
+      "bytes": 1048576,
+      "sha256": "6854f18301dc504d46934e743a51826feef1e4374a7f66bf76201b9406048bc0"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0047",
+      "bytes": 1048576,
+      "sha256": "efe7cdac4f9aebe9f71baa4db210310785d89fff2c3dc6bec9fd94123bd9efcc"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0048",
+      "bytes": 1048576,
+      "sha256": "8128be55defab12056823ead0bb38684916fde1606f26965e1851f3a4f8d1642"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0049",
+      "bytes": 1048576,
+      "sha256": "dc4a1d22a139f7f9f1faeeb03e7bcce0c9be10e44d90bc2353d2f1e80fde5732"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0050",
+      "bytes": 1048576,
+      "sha256": "b44b1ed9fbad6c9eb4aaff34ec24f82991826d3a76c941ededf8e378114d0d58"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0051",
+      "bytes": 1048576,
+      "sha256": "90e14da9764ae8bed42703e53149439be9b8508bf8381a9f08f787c0cc1f51d1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0052",
+      "bytes": 1048576,
+      "sha256": "c8227fd4301d5209a8d443536f1f84305e9ec69720eed22705984282159c7d2c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0053",
+      "bytes": 1048576,
+      "sha256": "4444ea3acbfa128f6f09f203254200b8890a662c442b31b17cbf8e71da356a52"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0054",
+      "bytes": 1048576,
+      "sha256": "9260f12719dfbaba9fa2a90d593c815d8dbf1781cdd4e59f173da1b5d890a01d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0055",
+      "bytes": 1048576,
+      "sha256": "a48b65c20fd2cd96fee51cbd1d16ce4697965e2157fb56190b4c16f5112fa4cd"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0056",
+      "bytes": 1048576,
+      "sha256": "15ff8d1c2fec5c86e90f6d45d7297ff27c1e4948207cec517db0f1716696797c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0057",
+      "bytes": 1048576,
+      "sha256": "af3b6a009ff471c1648dcf381c3c962a90da4fdaad2b3792b04ec45621fd51f0"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0058",
+      "bytes": 1048576,
+      "sha256": "c4ef13c61c6a119cbe8c90548bac6168fae54ac0508510563b8c0a72d3383da3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0059",
+      "bytes": 1048576,
+      "sha256": "09f33153686a35034f6697bd46020970d921a9bb655dc622f580e5ec3ed0e0ee"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0060",
+      "bytes": 1048576,
+      "sha256": "f997bf343b0677f2b226ee2425aef7d67fe20a65641f7897e6bdd82de3fa14d7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0061",
+      "bytes": 1048576,
+      "sha256": "9b96a79c68944c1cb6ff462aff5b469e28426927d24b117669dedffc77c5d945"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0062",
+      "bytes": 1048576,
+      "sha256": "cb7031704a29566aa86fc8e878eeeb2492363e5b60af92bacbc67ed5ff0c4129"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0063",
+      "bytes": 1048576,
+      "sha256": "c1afcfcc63f1be3657e18b88a6ab96cf96e5dce43b0e27947901f246b946863a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0064",
+      "bytes": 1048576,
+      "sha256": "9ca1bebce416fb94873d5f5c0d916a829a7f3fe8cc3e7feb4eaf9677869cdf85"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0065",
+      "bytes": 1048576,
+      "sha256": "c836876bd05a37eb1702fd7995d5c10b3cee921032466a3c202f7ee65fecfa4d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0066",
+      "bytes": 1048576,
+      "sha256": "52fed8a50eaf2535c35898e5a42f5b6af2a1cf2615cb5ece5fc3ed03c282f4c1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0067",
+      "bytes": 1048576,
+      "sha256": "7f7f2669e3711f2a909f7d8e4699e0732771bc7ae09a9a583a47e7988a61d748"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0068",
+      "bytes": 1048576,
+      "sha256": "4cb416d6beb993b804fd2a44bf4d5d065a5175847573ae676f379bdc2876f77e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0069",
+      "bytes": 1048576,
+      "sha256": "ec59ee786a4e9bdf31771245efcfe2aa5eb17ad1e76b952b5ea8b4a31143f0bf"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0070",
+      "bytes": 1048576,
+      "sha256": "5ed3681139b8afe1a9873a3b8f90d54d1f128abed119e905f56c91eafba3248a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0071",
+      "bytes": 1048576,
+      "sha256": "0307385e67a665817d105d5108655f1185e16442b5bb9dfe7a6a3f3b1fc01bca"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0072",
+      "bytes": 1048576,
+      "sha256": "3c7319b6fc6bddd026a82f214e703207183ad38f6f5a05e869c72ba3cc06623f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0073",
+      "bytes": 1048576,
+      "sha256": "51e2c0d6a1739b99267be60e591356d3f768bd838f93c9ad58030d5935d5898a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0074",
+      "bytes": 1048576,
+      "sha256": "425e58ba8cff503db8d4f7290768233c8ba2a8fd0741fa6ad6441c4ec6de44d3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0075",
+      "bytes": 1048576,
+      "sha256": "569c038cb78205b3ac29da11c0b87a4662945d1528acaa17256967f385b2d397"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0076",
+      "bytes": 1048576,
+      "sha256": "55b77ad534f748fa5c297106118686cecd5b3b69696c2b57889114d0b02e9415"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0077",
+      "bytes": 1048576,
+      "sha256": "9a3accf8d3014f920087f4b3a44180e1e867fe6b9bc744cf6cf9638206db82a9"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0078",
+      "bytes": 1048576,
+      "sha256": "0b76abe5182e3e535b81a16def1359850ff6d58f37b6c20028cccbebf2781ee1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0079",
+      "bytes": 1048576,
+      "sha256": "dd8651eb0ea4092fb52f5414075d9f6fc99b2c772f2b14294762c2c2798090ca"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0080",
+      "bytes": 1048576,
+      "sha256": "0e58dc29172c734870ea45f240d6780acb0c5fca63c0973cb94700a6a4037caa"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0081",
+      "bytes": 1048576,
+      "sha256": "7fd1f6c6daf59e9a6a7f03fc01f755a8ddc5a0a7eb3d0a33d2f9814a54b5c8c4"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0082",
+      "bytes": 1048576,
+      "sha256": "d0836351e7dd0d1f0638546d23ed771d15c77550ab19109fb8c89b23f5081c61"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0083",
+      "bytes": 1048576,
+      "sha256": "b1d543e217e3935e0aad40a2978a293d71b42ffe244a9b32e240430d962a408c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0084",
+      "bytes": 1048576,
+      "sha256": "de6b1bd6df3d94ae6888498fc2ebb49616116cc365c0030668ba5ea188cadf50"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0085",
+      "bytes": 1048576,
+      "sha256": "761d4ad4beec27a20e307213d845ce6986dc67392cb7d772a35b973d0dd1bf14"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0086",
+      "bytes": 1048576,
+      "sha256": "18b2b055c8a03f384757b7a88daec85156b6f541f188692cc5b064842ce667eb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0087",
+      "bytes": 1048576,
+      "sha256": "55403f5c3f79ab9330d4b154edd116d6dd57141358e99c31eda2386efa61bc96"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0088",
+      "bytes": 1048576,
+      "sha256": "4bc4e00844bb03f19dc67aaf32a29adb43fc1986e3c30b49a7224303b06fa635"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0089",
+      "bytes": 1048576,
+      "sha256": "422a05bcf638eb12b1498e663bc758037e2f6e4df7fe72a2e1aac25e1dc1530c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0090",
+      "bytes": 1048576,
+      "sha256": "dfc0f1940de08ca13f3e4d5c91d9b24bf57097a81c9289ad5fd3e21d3336dbbb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0091",
+      "bytes": 1048576,
+      "sha256": "93f1b04a24f7937f7fbd31828bb500c2c359e74f5fefbf7678142606b76ad5c5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0092",
+      "bytes": 1048576,
+      "sha256": "bd253719404ebd358e9309933264dc411e85330b221547b526f05ef5fa484900"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0093",
+      "bytes": 1048576,
+      "sha256": "b37b435c4c6030d3f83d3883b4ddf4a7314a27033f6a3e6eb507d8e6ce67fb70"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0094",
+      "bytes": 1048576,
+      "sha256": "d5772dbe7176b4a42cfac462792d6bb3028adee946374ee7a711499457b5da35"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0095",
+      "bytes": 1048576,
+      "sha256": "1c6b54e621c706e76001888859f56202b25b9bbb72b35193bdb541fcdf67e605"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0096",
+      "bytes": 1048576,
+      "sha256": "d929277e0ba31353f6f9a568311cac99b67c0846f11022c93c3c1b918d2c4de3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0097",
+      "bytes": 1048576,
+      "sha256": "57e26be4b7e63d0208651d24efdb0b93b01211e74d53802e4b5591f9f81919a7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0098",
+      "bytes": 1048576,
+      "sha256": "9e5500e96165ab84356b0b93fa8d1b610bb895a63cae361d7086665c6109a8d9"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0099",
+      "bytes": 1048576,
+      "sha256": "3e70dc2351788a490b1933e6bc28a884b85f7961a33c54d0ac0c6f61593bf882"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0100",
+      "bytes": 1048576,
+      "sha256": "92f5e6ab56104c7701e1ac89c85b6301e60b178515b837f4f821c54a7ea0f6e5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0101",
+      "bytes": 1048576,
+      "sha256": "cf0378903413a2d2a293d05292fb9f6a00097a4b5b188fdeda42e6347252a9c3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0102",
+      "bytes": 1048576,
+      "sha256": "a2bdc578f4b363b1ab1b1c6ea1f9d0a8d4cc966067f68564b27dd791499e4e35"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0103",
+      "bytes": 1048576,
+      "sha256": "0d98f5c76fb6461417f2cc209fd247524f32cdf38a29cb34055edd270212084b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0104",
+      "bytes": 1048576,
+      "sha256": "bc660b7615180af6c4254c0c7fd0204c75f2b6274429fb60716a6da060390954"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0105",
+      "bytes": 1048576,
+      "sha256": "e94b1c89aa5f4c1c059d3ead12f1d0032d0c25eb2b17dad6b1e7eaee5865127a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0106",
+      "bytes": 1048576,
+      "sha256": "9eedd6d5dd6967929a0c1af6682b8c29ac51842e023f45cd0e3e425f02178c67"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0107",
+      "bytes": 1048576,
+      "sha256": "0135532cdee0061cb746ffa1a232134a37f3fd5022c4124a315e85be687f33eb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0108",
+      "bytes": 1048576,
+      "sha256": "111b819b026ae3f7b9dec4d0ebda187aae7b8b3168bcde120190eb5b330c73df"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0109",
+      "bytes": 1048576,
+      "sha256": "4faf28ee005c985d10faf49d970831c161490c6fa51f337018eaf1805c8d344c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0110",
+      "bytes": 1048576,
+      "sha256": "973c9080b385a7fe31040efe6aa06f05e226a377e91e26c45cbf9ff50518fd00"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0111",
+      "bytes": 1048576,
+      "sha256": "4c9ce58de09696391a80caf014939eff10b4239c6a7884fc15c0c2510aa37d1a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0112",
+      "bytes": 1048576,
+      "sha256": "a7e38bd828f502fe9ca09be07301004cbd5e9bc8d00bc9ee5078f63ba7ad2f81"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0113",
+      "bytes": 1048576,
+      "sha256": "4e6342447cc03406139c411d94fac712b813aeca37e14e703aa7be02ac4b1908"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0114",
+      "bytes": 1048576,
+      "sha256": "ab3e60157fc671c84073c5ca9520be914c5738c1f22025a5518395b9c5a15d96"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0115",
+      "bytes": 1048576,
+      "sha256": "293641252ba40e0636469aabe33bcbf4eb330ce0085fdca9cfd7af8f74c97499"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0116",
+      "bytes": 1048576,
+      "sha256": "a35b7c9bbbebbde4cc908cfd51a46682072fe5d840fb118db8d3cf326c9ae0d7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0117",
+      "bytes": 1048576,
+      "sha256": "68b1b74e9d93d83b872c85ea2b11a7592e09c809d6266bd9f381a4fe8d7807e2"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0118",
+      "bytes": 1048576,
+      "sha256": "1bbb34237009fb58cab707cae2fe4c4fc1af990b080afddd4c3ade4ab6a0bb17"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0119",
+      "bytes": 1048576,
+      "sha256": "aa6f8ddb81a2a06728443386cd1e5fc8c229522e954a110c452d6696cb548b65"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0120",
+      "bytes": 1048576,
+      "sha256": "b1bda6e05f1f046032ecf34342a60cb2d880e1403dcfcc90c5b04ec6abd8382f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0121",
+      "bytes": 1048576,
+      "sha256": "6676abce8a87a9c7ce13fc2b9cb2ab3d4c5e6f00ee769a3014f79f8c5fb5880e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0122",
+      "bytes": 1048576,
+      "sha256": "1246682d9a45bc777160c808149b3151eb6d2548090cd373792fb018da0d25af"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0123",
+      "bytes": 1048576,
+      "sha256": "f7102d411da2e66134b129130d58f7cc26aac5f67e97025a26dea81a543ef58a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0124",
+      "bytes": 1048576,
+      "sha256": "b903376cd02d15c55ef877ad2f216438a4042f73a894c37a819fc8fe65a7a7d7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0125",
+      "bytes": 1048576,
+      "sha256": "d6d370149ee8a21be393880cb318e8d86a2b53ff9cf12619e22ebc444be97c83"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0126",
+      "bytes": 1048576,
+      "sha256": "235ff75acb73debec4bb0a3c4bfefa39ac9e0cbb278631278feacf1bd12731dd"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0127",
+      "bytes": 1048576,
+      "sha256": "8fa90c5347553699cb51861fce40e955fe5ac9812fd87621661c204a168359de"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0128",
+      "bytes": 1048576,
+      "sha256": "ac240dddd67a4a035fb786ec76d65f6c79a7d373204041abf5476a7472f04487"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0129",
+      "bytes": 1048576,
+      "sha256": "9167d434b5b967535da3817452859f4f24669cdf9c220ac4d645cde20622b8de"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0130",
+      "bytes": 1048576,
+      "sha256": "e5a601f84234da3f4539a635f7f60966de046da8f6b84e9637b0409bf7e565bd"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0131",
+      "bytes": 1048576,
+      "sha256": "00e07ea5e4031a365852d8e38d976b54e001c1ef29f77947bd44167bb520c464"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0132",
+      "bytes": 1048576,
+      "sha256": "f464cf7829d62416fed5af19317f59886570466be7a4198694028a42691b2b2f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0133",
+      "bytes": 1048576,
+      "sha256": "c6cac6a69ef3b873a705b86931a1b6cc05f82917afc1bc9e89607c88a391a79f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0134",
+      "bytes": 1048576,
+      "sha256": "6e4b5632d17a4d0f37868ae8911493dee0896b4ad2bb45069236ab6d241c9846"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0135",
+      "bytes": 1048576,
+      "sha256": "bfbcc7d8db37647a0e6252cd3797ab642f2c718231d9df02fb9c303ffe9c48d2"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0136",
+      "bytes": 1048576,
+      "sha256": "a12381a34884fc5716e52ea0de55bee09097ac6e591eb86d8711831ad08f56d9"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0137",
+      "bytes": 1048576,
+      "sha256": "3da325395523e2b92282d4fc150950cfc3234ae07e077b06a04f95f029b46029"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0138",
+      "bytes": 1048576,
+      "sha256": "24a4122cb3d6b282d8cd7a12c04cfc3b0ee27f34010b84793336c39c17add1e3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0139",
+      "bytes": 1048576,
+      "sha256": "30cfa3a6c3d21accd74572029cbe6ac17495eeabd2df537a0086fcbfc405bd69"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0140",
+      "bytes": 1048576,
+      "sha256": "b8f2d010ceb42fecad9f13177930a8cc42e9cf0e559755feaf95367e3ada3466"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0141",
+      "bytes": 1048576,
+      "sha256": "5eb7d6f054f637b943f97ceaf83a7d1850fe2130ec4cea3c39db4caa297fde18"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0142",
+      "bytes": 1048576,
+      "sha256": "97066e94ee626100b2a8ec27a99514d7dd0d121b27fe48cebbc3ff27501f84e6"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0143",
+      "bytes": 1048576,
+      "sha256": "b7a5cf2c8cff21855d190e5b126667049594077bddbcc7b58fc9c9a99d00ebcc"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0144",
+      "bytes": 1048576,
+      "sha256": "4e3384fe32b6896b6f73563f3a5fa39872889d658cecb70964e599c6caed5fa0"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0145",
+      "bytes": 1048576,
+      "sha256": "16cd75732941aba649961ee50edc7caa67b078fdbc01ce09549cbebcd75917c5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0146",
+      "bytes": 1048576,
+      "sha256": "8ceb66e61cb54206653dc4506c051cb11f66cff2eee24d3a9f523341c795b69f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0147",
+      "bytes": 1048576,
+      "sha256": "cafd32628c3bdbe889fc34ffe274bd0a73143240fa0a8165961c37cdf6a45e25"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0148",
+      "bytes": 1048576,
+      "sha256": "942f7e6f8c1cda37fd5b2cbf0dc493f9764c8c109e588dfcc19aa90c13c40b3d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0149",
+      "bytes": 1048576,
+      "sha256": "41f6dd48152ed88143c3bbb682339709361095b50e4e376f64ca036b5c1db554"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0150",
+      "bytes": 1048576,
+      "sha256": "34b82a49d0899f61209d8a1fe4dedd7f1f0ab091b6951bb92c5f516aff820100"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0151",
+      "bytes": 1048576,
+      "sha256": "3d40c5cdb228e7b0f0c9cd9bebb4b34e8c292c8306b2a4a80b75a873a48b0dfb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0152",
+      "bytes": 1048576,
+      "sha256": "3f8fb7400421ea2066a709237ce57ba52fef9bb05f2be3c2ed78df5ef32c5564"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0153",
+      "bytes": 1048576,
+      "sha256": "e47c94d31357b45f762c7b7c40b98fbf070ebe3ec4e43501223adc9095433c7f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0154",
+      "bytes": 1048576,
+      "sha256": "83397f898aa91a0e7123fbb153bacbc722ae2ae4d7362ef3f7fe971af32af84d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0155",
+      "bytes": 1048576,
+      "sha256": "54f08420e9198068d282c370f37298d5a87be40f5071980ad116b483f8c1fc6c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0156",
+      "bytes": 1048576,
+      "sha256": "b71b04b0281f4c2916971e0732ccead54c2ad3fe11f94719fd408011a54f0b73"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0157",
+      "bytes": 1048576,
+      "sha256": "2c342800273cc144efdd14be08095b1c87092b04a62938aa55299120bf15b60f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0158",
+      "bytes": 1048576,
+      "sha256": "96a09d285e15bca128894b7dcfa0428f0049505b2875c3aafd0c6f4471a5d294"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0159",
+      "bytes": 1048576,
+      "sha256": "dce4d92154d76ba4696bc9b42a3cfe187faedbaf99f2939c28cb42557213f055"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0160",
+      "bytes": 1048576,
+      "sha256": "214e198327d0dd07e24caf3dddfea49907ebaad23706c3ff84173e66450da754"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0161",
+      "bytes": 1048576,
+      "sha256": "de09b85871ac5515eb0574d823a3cc17d620924f9863c354ac30e2f971e330c2"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0162",
+      "bytes": 1048576,
+      "sha256": "fca20b49da14f17577c55d69f5410ed8a893f8655dedf5c18e1ccb923f6d5664"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0163",
+      "bytes": 1048576,
+      "sha256": "798087470c6c1c439d72cc6b433b1ab8d9b9f4ccf6a48214032e7d973ef00002"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0164",
+      "bytes": 1048576,
+      "sha256": "d28cf18022b1b9db1eaa6b545f96af70ce3ecad89583c542f517cbb05eaf6566"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0165",
+      "bytes": 1048576,
+      "sha256": "9c4274716fa18a37067b4b4e386d7de6511683d68a8d60e41364fb504f1dc35a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0166",
+      "bytes": 1048576,
+      "sha256": "5bc7b040ca367fe0fbb45552924b2aba401fcc23d923cbd62b1888f8ac59132e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0167",
+      "bytes": 1048576,
+      "sha256": "f2484f49638e746369158c5dd8e17e304c6e7941cc8c943b18c78bbc61d4cd41"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0168",
+      "bytes": 1048576,
+      "sha256": "a7544da2496c690884f3505a25ee6bcd3130a8404e40e11a350a3d31ea397468"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0169",
+      "bytes": 1048576,
+      "sha256": "afc01c657bb78cd00c1027bfba5a1e0d588bbe350685cb6d116c501fbd53f8c7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0170",
+      "bytes": 1048576,
+      "sha256": "19cd066188dc1e345fa738cc2f098ac32971dfef9d3f35e3ed390817887f5787"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0171",
+      "bytes": 1048576,
+      "sha256": "60c66b34c7564c317e31fdc077e2f67998f88f0ab7d13f577a709c4277832e45"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0172",
+      "bytes": 1048576,
+      "sha256": "80fe2e0f76bcf3a988b5be75d1670be27f5a321032c79ec97ce40d79a237ff01"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0173",
+      "bytes": 1048576,
+      "sha256": "c27c14476506a98eccc6d225c385348188025a3399cfa3c3e997224718af76fc"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0174",
+      "bytes": 1048576,
+      "sha256": "e216a0e883194846ec8dea1d29fe9d3a8d6a3aca566f2e63a60f734ea6fef0c9"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0175",
+      "bytes": 1048576,
+      "sha256": "85be145cd09afd10a23877da14dc6b8b1d716fdfadc67917397d7cf66affb49e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0176",
+      "bytes": 1048576,
+      "sha256": "b49783a94d35cf54cad6747565f24699385f96bf8ff55aeb8cd8588c5006e5bf"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0177",
+      "bytes": 1048576,
+      "sha256": "f3526584ada72e4c3baa8940582e4cbf72739f41a88602547692d01c5de5c58b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0178",
+      "bytes": 1048576,
+      "sha256": "069ab553215093f6405231a61caea80a440a99c66ee6a39dd78fafc57a252e8a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0179",
+      "bytes": 1048576,
+      "sha256": "898b05b75dbafc8f71a4c9ab9608f96f438c3c5396e26e4debbaa0d17bac014c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0180",
+      "bytes": 1048576,
+      "sha256": "778fc671beceff415219143bf8e09a751de30e8c22c762f16a5d72def7136e5a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0181",
+      "bytes": 1048576,
+      "sha256": "67ee7b1e08c97ea61b2f9ba6813915f7caff6df9d87cfecb88c0356bacc32d2d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0182",
+      "bytes": 1048576,
+      "sha256": "5dee8572825038840e13001201d8892e75f3eb8f0cfd9c6dbe8883b84a22a8a5"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0183",
+      "bytes": 1048576,
+      "sha256": "6c196607d242fe363dd43f253818f374d6660de682078bbdba35707c1d2b4ebb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0184",
+      "bytes": 1048576,
+      "sha256": "f36154a878a5143ac67ed5691642abea91f068f1b56600ac615f262c317f8065"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0185",
+      "bytes": 1048576,
+      "sha256": "0084939f9793dccb8e8748240447897f34d4ad0e56545e828eb7dc72dd834451"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0186",
+      "bytes": 1048576,
+      "sha256": "861b7a5dc23b3c4e1679171b856c416167f9fb1306d307ab8818b95f13fa12ae"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0187",
+      "bytes": 1048576,
+      "sha256": "bc017eadbfc71d4d6ea840cdd36641c57aebdb1d9bc1652b7d387809210300a2"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0188",
+      "bytes": 1048576,
+      "sha256": "5041eb0808d0ac801974cd35adfd723022c714b781a7a40ca81f495abc72bda2"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0189",
+      "bytes": 1048576,
+      "sha256": "349802d4758dd7b4eb51a7bb32be97904cb5d8e9b45f0d1849330bf95958c57f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0190",
+      "bytes": 1048576,
+      "sha256": "9ea714a51dcbef25554688bacf6b1d7a0d59947baac355192e5155d20504d28c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0191",
+      "bytes": 1048576,
+      "sha256": "fda55516cba639523a25eca4795c92bec2ccb438a73d12364dab81f78f8e4f35"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0192",
+      "bytes": 1048576,
+      "sha256": "041d5ad579b68a11084577849b24a35b8e6dd3cc241d60fd4310f480016a509b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0193",
+      "bytes": 1048576,
+      "sha256": "a341c3a87162205bbbc2ee400ce69b66a97621b27dfc02b6bede2bb4a684e868"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0194",
+      "bytes": 1048576,
+      "sha256": "5366369b04aa4b402a84ec7092c04201bffd4a2ec5905aab671c53ce2074b9c3"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0195",
+      "bytes": 1048576,
+      "sha256": "03ae8493b9c004d77cd1fc0e58def7c7f01a6193d7a8d25158ddf1d7494db7dd"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0196",
+      "bytes": 1048576,
+      "sha256": "2d565fed207a049b6e1268732a5af238f87a6923fca77f4fff9963e3dcb58f9e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0197",
+      "bytes": 1048576,
+      "sha256": "f2e97b55c91db34a53448868d5a352a1b8a77e28778f52b61abe590c0e4896d0"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0198",
+      "bytes": 1048576,
+      "sha256": "d978adb1813636059575f89acd90d3f1a7da1bb4b15142b5f43203914ebd594c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0199",
+      "bytes": 1048576,
+      "sha256": "60052ec77c5d58e1297ce619cc6d23f865c92c1bca486544936e01d341932fb7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0200",
+      "bytes": 1048576,
+      "sha256": "35486a4c266833ff9c88bdac1e99f89b5b1a116e58bbf3ac4f1667d5a30346a1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0201",
+      "bytes": 1048576,
+      "sha256": "d754b255cd258b2d737c37e52162e53c574d9fdf5ac8f727e228b8f7af89b975"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0202",
+      "bytes": 1048576,
+      "sha256": "ee9f09fb557289ea038e7f9cdf358ab609047ab18bc98d90634d37cb063c7daa"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0203",
+      "bytes": 1048576,
+      "sha256": "5b244c701889e75da822b86223f839a1f078d3da77549f8866e289c7b325873e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0204",
+      "bytes": 1048576,
+      "sha256": "8631f0674e8051afce5cfd7587bb385fd8b354c1b6e4ab979076eee37b15a64e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0205",
+      "bytes": 1048576,
+      "sha256": "0ccb931292542eb7fbd735ca81073c45acbb91233bf5ba37310403133628eb90"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0206",
+      "bytes": 1048576,
+      "sha256": "33f5dd5bd7f96b38c9922750e44b69689e51897d4db24b645428fdd39aac98e8"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0207",
+      "bytes": 1048576,
+      "sha256": "d4d76392ab72c5dc8c53c85101cb6f740399a0741786fa3a349bcdd7112fb309"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0208",
+      "bytes": 1048576,
+      "sha256": "390a4a6d83e5759da1dd4d844c287ec38cf3cf9f080a7b482bdc3b3c26bc4d92"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0209",
+      "bytes": 1048576,
+      "sha256": "3287b933c1a1d63493f1b67badbf82ee87184ac2e9eff2ec885c8230abda8f9b"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0210",
+      "bytes": 1048576,
+      "sha256": "162e2a24fdd8d3180212267b6484ec7839d4278285e0be6505f2f5fa98d50c53"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0211",
+      "bytes": 1048576,
+      "sha256": "e44e2db878f4c61b94f7096514930d825c91ea900d3083236221c9dcfbf80fdb"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0212",
+      "bytes": 1048576,
+      "sha256": "316cd552e2e0769759c8109662870d123dd06c3dd5702f06155663737faa82e6"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0213",
+      "bytes": 1048576,
+      "sha256": "8fbacdc39b6516e556d556deb07b11adae86e6f14df12e98c8bf1594dc84cb6a"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0214",
+      "bytes": 1048576,
+      "sha256": "e4b492f1a348ce10e69139a67a47e0e58e9bea2d639eae33c1bdac4bdcaa3207"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0215",
+      "bytes": 1048576,
+      "sha256": "7e9dc05362b0b3487b378f0e8a1438d042fab75a6c9ff861d6381d7b46109dc9"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0216",
+      "bytes": 1048576,
+      "sha256": "1d87efa7a53f9ba7faa549d679be3b93ec29249975d78f52e73164c32d46309f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0217",
+      "bytes": 1048576,
+      "sha256": "64bc2f7f2e0b5b417509b2b3aa08540906be594519238793ff83f7d1506486e7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0218",
+      "bytes": 1048576,
+      "sha256": "d9091cae7c3bc5935ba5fdf109ac55eccc3e2d33279dd15a63e9b13f8c76fd16"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0219",
+      "bytes": 1048576,
+      "sha256": "b0b4f17bebaddcc281a0d995b029e9880817a262b94438c1da53815620cd6269"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0220",
+      "bytes": 1048576,
+      "sha256": "f767492335a40e7f8db37c5e767ffb092b1bed9f139b8fa9c075dd0b7e458a02"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0221",
+      "bytes": 1048576,
+      "sha256": "29a371813fa0bc85f38da0ca7b5041385ef61f7fc518b1d291f4ed7c7ef845ca"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0222",
+      "bytes": 1048576,
+      "sha256": "d76e0d6458940a75d7a9cdc61e31ba8f1ce8a60fff711e76f7ee25d9d4365376"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0223",
+      "bytes": 1048576,
+      "sha256": "b66a3be43d225ad6f2624e85bf81bc53d92b3a46b5a9064bcecca851dd9bd2b7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0224",
+      "bytes": 1048576,
+      "sha256": "fe532d9157415feb0aec67fb87970a11cfcceb6194e8a2b8757bcbc763c87500"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0225",
+      "bytes": 1048576,
+      "sha256": "24d88a2f9511f8d94efa2fc31699c462f64d492d0086ff626bda6707748f22f7"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0226",
+      "bytes": 1048576,
+      "sha256": "d14b0a0f9cc1189cfc3343598e9d85e6272d6720a2a727b7579036d4729d1704"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0227",
+      "bytes": 1048576,
+      "sha256": "ced5687df259c099d7a96543006ab1d346ab881faeebd2495b1b5118f55d446d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0228",
+      "bytes": 1048576,
+      "sha256": "7ff5e9434ca4e7071a853939cdd037203a3d15b1b0516b81cf0b58515619e369"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0229",
+      "bytes": 1048576,
+      "sha256": "d0ade35b2ed5d7da7a20dd434d6b28d8dd4458a8dca6a35bfaa8efd1534d1334"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0230",
+      "bytes": 1048576,
+      "sha256": "c169e9324f445952622a3193fb841e92836072b334200fc801fcf688badaa586"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0231",
+      "bytes": 1048576,
+      "sha256": "5c898ae006cf53755a345edbc71a8ef66829a06dc83ffa22e10ffb274725d4d8"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0232",
+      "bytes": 1048576,
+      "sha256": "4d4d18ecb9656538a986d26f25a57fa0d6cbb71b891d26373736cf5ec8dc6e78"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0233",
+      "bytes": 1048576,
+      "sha256": "4277f32b31ed3bd2d24df83a0798bea4a8e2b27ee809fc38a55822bb089cdbec"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0234",
+      "bytes": 1048576,
+      "sha256": "7220051f24b0c9fac0b981093f790ea395cc5a1a3f2930076751557b4198984e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0235",
+      "bytes": 1048576,
+      "sha256": "aede2f67e40934303182f4179a1ac4434f43405462514254969e3fb6548bc157"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0236",
+      "bytes": 1048576,
+      "sha256": "8c077efd7978c82c4640b8507a656dc9749de38a32f2ad7c27068fead3e39a27"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0237",
+      "bytes": 1048576,
+      "sha256": "3b0240449568721fbdfc3ad70da2ed3587a0d91dbd9a888b55785511592f053c"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0238",
+      "bytes": 1048576,
+      "sha256": "84c21b21c6f1e1ef5016a10c3e6ba5a5ba45265e2a64375800a0989552811361"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0239",
+      "bytes": 1048576,
+      "sha256": "f1e7124b44805007e2abd66cdcaf46f78bf8081a9202138ac772126d75797303"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0240",
+      "bytes": 1048576,
+      "sha256": "7b5ec9ea9e8837352fe0273944ec2dd52cb48bc8d1a82e7ae674d664f8c4390d"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0241",
+      "bytes": 1048576,
+      "sha256": "4bff48c076034093f0b548230e3abf22f0f1f8414e69425dfe08b021b328698f"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0242",
+      "bytes": 1048576,
+      "sha256": "3505c0b087cc6f5c178523156c77686adf34a1e2cbc968e56437864f852e450e"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0243",
+      "bytes": 1048576,
+      "sha256": "02cac7f21c2fbae3dd44d3b7bdaa03642c7717ac609b91d94c7d7ac30b42e905"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0244",
+      "bytes": 1048576,
+      "sha256": "b33f39b8b04007e492198de565e6b9f24bad04f1751b63f2f7e4c47eefd84ac1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0245",
+      "bytes": 1048576,
+      "sha256": "58fa8837bf3aca970f3c8838776e0ed5f217ca41209765388c0038856e814c15"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0246",
+      "bytes": 1048576,
+      "sha256": "29e1318d412479d2edf9e3a8ff8ab17c0ffbbb3a5d18ce32a7bce69757dcbf18"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0247",
+      "bytes": 1048576,
+      "sha256": "4bd0b0ca49b89dda91c0e0dc7c5e217e608a406d561b9b6a76f9251b10b6a2e1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0248",
+      "bytes": 1048576,
+      "sha256": "f86a55daad0e405d5ea59d1668d0bccbf9b976690a7e4562122a724797beaabf"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0249",
+      "bytes": 1048576,
+      "sha256": "8a432254bf5e79375722875f0ddd93cae5aa955ea8f8549b91f12023ff7d53b1"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0250",
+      "bytes": 1048576,
+      "sha256": "c684a84f5989607df61c48df8bc3619eab8b74ef939ede43ac940460c836e446"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0251",
+      "bytes": 1048576,
+      "sha256": "cb7d5437b90e6375d0d2b9a35e5f9c24fac75559a9632d5ea34c2173aa759b49"
+    },
+    {
+      "archive_url": "https://github.com/meilingrl/finance-RAG/releases/download/fixed-data-v1/fixed-course-data-v1.zip.part0252",
+      "bytes": 34706,
+      "sha256": "bbc0f66fc55fffcb5cea772fa82b5b5b416899dbaaa00cf0284ceb223f7ae832"
+    }
+  ],
+  "archive_sha256": "29245c505e6fef3e35584888760ac9713488537160e3fb38cf2f6d8d37fd261b",
+  "bundle_id": "fixed-course-v1",
+  "demo_root": "demo",
+  "formal_root": "formal",
+  "install_dir": "data/fixed-course-v1",
+  "manifest_sha256": "6f7acfc915584c503da7400a93b6d6578f6eca67a6359ab4f9983e9581514b51",
+  "schema_version": 1
+}

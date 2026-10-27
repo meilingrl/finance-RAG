@@ -17,7 +17,9 @@
     "configs/examples/*",
     "docs/guides/APP_GUIDE.md",
     "docs/delivery/COURSE_SUBMISSION_MANIFEST.json",
-    "docs/delivery/COURSE_README.md"
+    "docs/delivery/COURSE_README.md",
+    "configs/fixed_dataset.json",
+    "docs/delivery/fixed-dataset/*.md"
   ],
   "required_documents": [
     "course/报告.pdf",

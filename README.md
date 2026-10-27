@@ -14,11 +14,13 @@
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements/requirements-app.txt
+.venv/bin/python -m pip install -r requirements/requirements-course.txt
 .venv/bin/python scripts/course_entry.py
 ```
 
-默认打开 `http://127.0.0.1:8765`。资料、模型权重和 API 密钥需自行配置；安装与操作见[应用指南](docs/guides/APP_GUIDE.md)。当前进程锁依赖 Unix `fcntl`，Windows 尚未验收。
+默认打开 `http://127.0.0.1:8765`。首次启动会自动下载、校验并登记固定课程资料与 MiniLM 权重（约252 MiB，分片并行传输），放在当前仓库的 `data/fixed-course-v1/`，页面显示进度。无需复制作者机器路径或手工选择候选包。填写模型服务地址、模型名称、并发与会话密钥，在正式实验页点击“准备并检查”，程序自动完成数据检查、文本/图像/并发验证和配置冻结；通过后点击“启动”。
+
+单题演示始终串行。服务重启后需要重新填写会话密钥；密钥不包含在资源包中。离线安装、平台依赖和详细操作见[应用指南](docs/guides/APP_GUIDE.md)。当前进程锁依赖 Unix `fcntl`，Windows 尚未验收。
 
 ## 目录与阅读入口
 
@@ -33,7 +35,7 @@ python3.12 -m venv .venv
 | `tests/` | 应用、实验、导出与前端测试 |
 | [文档导航](docs/NAVIGATION.md) | 使用指南、设计、实验结果、课程报告及历史材料 |
 
-本地 `data/`、`artifacts/`、虚拟环境和 `.local-secrets/` 不纳入 Git。原始数据、冻结结果与恢复材料保持原位置；目录整理不会改变已有实验记录。
+本地 `data/`、`artifacts/`、虚拟环境和 `.local-secrets/` 不纳入 Git。固定主集与开发包由[版本资源](https://github.com/meilingrl/finance-RAG/releases/tag/fixed-data-v1)交付，仓库中的 `configs/fixed_dataset.json` 固定下载地址、分片及整体 SHA256。原始数据、冻结结果与恢复材料保持原位置；目录整理不会改变已有实验记录。
 
 ## 结果与课程材料
 
@@ -49,9 +51,9 @@ python3.12 -m venv .venv
 | 要验证的内容 | 入口与额外条件 |
 | --- | --- |
 | 程序实现与工程行为 | 下方自动化测试；使用合成资料和模拟接口，无需真实 API 密钥 |
-| 本地网页能否启动 | 上方启动命令；实际问答还需登记资料和模型 |
+| 本地网页能否启动 | 上方启动命令；固定资料自动准备，真实生成另需服务凭据 |
 | 已有结果能否独立复核 | 应用指南中的 `verify` 命令；需要原已封存运行目录和匹配的资源文件，源码克隆不含这些文件 |
-| 真实主测试集能否重跑 | 依照应用指南准备数据、固定编码器和 API，再冻结对应实验范围；会产生实际调用，结果可能受外部服务变化影响 |
+| 真实主测试集能否重跑 | 使用自动安装的固定主集与编码器，填写API后点击“准备并检查”；会产生实际调用，结果可能受外部服务变化影响 |
 
 已完成主集采用 `main_only` 范围；完整实验方案还包含未执行项目。核对报告时以[实际主集结果及边界](docs/experiments/MAIN_RESULTS.md)为准，不能把方案中的计划项目当作已完成结果。
 

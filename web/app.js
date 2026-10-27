@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id), pretty=x=>JSON.stringify(x,null,2);
 const store={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}}};
 let session='',credential=null,profiles=[],profile=store.get('rag-profile')||'formal-v1',resource=store.get('rag-resource')||'',run=store.get('rag-run')||'',examples=[],timer=null,answers=[];
 let savedState=null,restoring=true,referenceQuestion='';
+let fixedDataStatus=null,preparedExperiment=null,pendingExperimentPreparation=false;
 let syntheticOutput=false,answerPage=0,runKind='';
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!==null&&c!==undefined));return node;};
 const short=id=>id?(id.length>14?id.slice(0,8)+'…':id):'';
@@ -117,11 +118,18 @@ Object.assign(reasonNames,{
  inference_asset_changed:'材料文件已变化，请重新核验受影响的材料',
  local_model_projection_incomplete:'MiniLM 模型登记不完整，请重新登记完整资料包'
 });
-const explain=x=>reasonNames[x]||x;
+Object.assign(reasonNames,{provider_capabilities_unverified:'正在准备模型文本、图像与并发能力检查',fixed_data_preparing:'正在自动准备固定资料，请稍候',fixed_data_unavailable:'固定资料下载未完成，请检查网络后重试',vision_check_failed:'模型图像检查未通过，请使用支持图像的模型',http_401:'密钥未被模型服务接受，请重新填写有效密钥',http_403:'当前密钥没有该模型的调用权限',http_404:'模型服务接口不存在，请核对服务地址',http_429:'模型服务限流，请稍后重试或降低并发',model_mismatch:'服务返回的模型与配置不一致，请核对模型名称',response_not_completed:'模型未完成本次回答，请提高输出上限后重试',transport_outcome_unknown:'模型服务连接中断或超时，请检查连接后重试'});
+function explain(x){
+ if(reasonNames[x])return reasonNames[x];
+ if(x.startsWith('vision_'))return '图像能力检查未通过：'+(reasonNames[x.slice(7)]||'所选模型不能完成图像输入');
+ if(x.startsWith('secondary_'))return '对照模型检查未通过：'+(reasonNames[x.slice(10)]||'对照模型不能完成本实验所需输入');
+ if(x.startsWith('course_'))return '固定资料完整性检查未通过，请重新校验资料或联系提供者';
+ return x;
+}
 const joinReasons=items=>items.map(explain).join('；');
 function renderBlocks(id,items,title='还需完成'){
  const target=$(id);if(!items?.length){target.replaceChildren();return;}
- target.replaceChildren(el('p',{className:'blocks-title',textContent:`${title}（${items.length} 项）`}),el('ul',{className:'blocks'},...items.map(x=>el('li',{},el('span',{textContent:explain(x)}),el('code',{textContent:x})))));
+ target.replaceChildren(el('p',{className:'blocks-title',textContent:`${title}（${items.length} 项）`}),el('ul',{className:'blocks'},...items.map(x=>el('li',{},el('span',{textContent:explain(x)}),el('code',{textContent:x,hidden:true})))));
 }
 
 // ---------- API ----------
@@ -139,8 +147,8 @@ function request(kind,canonical=false){
 // ---------- 1 配置与资源 ----------
 function showProfile(){const current=profiles.find(p=>p.profile_id===profile);$('profiles').value=profile;const status=current?.status||'draft';$('profile').textContent=profile==='formal-v1'?`固定正式方案 · ${status}；开发 E1 无需密钥。`:`当前模型方案：${profile} · ${status}`;$('ctxProfile').textContent=(profile==='formal-v1'?'formal-v1':current?.models?.primary||short(profile))+' · '+status;}
 async function refreshProfiles(){const caps=await api('capabilities');profiles=caps.profiles;$('profiles').replaceChildren(...profiles.map(p=>el('option',{value:p.profile_id,textContent:(p.profile_id==='formal-v1'?'固定正式方案':p.models?.primary||'自定义')+' · '+p.status+' · '+p.profile_id})));if(!profiles.some(p=>p.profile_id===profile))profile='formal-v1';showProfile();return caps;}
-function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);$('concurrency').value=p?.concurrency??4;if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}}
-$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);const p=profiles.find(x=>x.profile_id===profile);if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}$('concurrency').value=p?.concurrency??4;showProfile();};
+function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);const v=p?.provider||{};$('providerApiStyle').value=v.api_style||'';$('maxOutput').value=v.max_output_tokens||2048;$('providerTimeout').value=v.timeout_seconds||120;$('reasoningEffort').value=v.reasoning_effort||v.reasoning?.effort||'';$('responseFormat').value=v.response_format||'auto';$('providerStream').checked=v.stream!==false;$('concurrency').value=p?.concurrency??4;if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}}
+$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);fillProfile();showProfile();preparedExperiment=null;experimentReady=false;$('experiment').disabled=true;};
 function resourceSummary(report){
  if(report.resources[0]?.registered_root)$('resourcePath').value=report.resources[0].registered_root;
  $('resourceDetails').textContent=pretty(report);
@@ -167,45 +175,51 @@ function restoreDemoState(){const d=savedState?.demo(resource);if(!d)return;for(
 $('examples').onchange=()=>{selectExample();saveDemoState();};
 for(const id of ['question','doc','retriever','e2','e3','e4'])$(id).addEventListener('input',saveDemoState);
 
-async function register(path,review_policy){if(!review_policy&&path===(await api('demo-defaults')).formal_root)review_policy='automatic_course';const report=await api('resources/register',{root_path:path,...(review_policy?{review_policy}:{})});resource=report.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);await loadExamples();resourceSummary(report);notice('资源已登记，文件已核对；开发资料可用于演示，正式缺项见校验明细。下一步：在「单题演示」运行一题。','ok');}
+async function register(path,review_policy){const report=await api('resources/register',{root_path:path,...(review_policy?{review_policy}:{})});resource=report.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);await loadExamples();resourceSummary(report);notice('资源已登记，文件已核对；开发资料可用于演示，正式缺项见校验明细。下一步：在「单题演示」运行一题。','ok');}
 bind('saveWorkspace',async()=>{const result=await api('settings',{output_directory:$('outputDirectory').value.trim()},'PUT');$('workspaceStatus').textContent=result.restart_required?'已保存，下次启动后生效；当前任务与原结果保留在原工作区。':'当前已使用该目录';notice($('workspaceStatus').textContent,'ok');});
 bind('register',()=>register($('resourcePath').value));
 bind('legacy',async()=>register((await api('demo-defaults')).legacy_root));
-bind('reviewed',async()=>register((await api('demo-defaults')).reviewed_root));
-bind('prepared',async()=>{const path=(await api('demo-defaults')).formal_root;$('resourcePath').value=path;await register(path,'automatic_course');});
+bind('reviewed',async()=>{if(!fixedDataStatus?.ready)throw Error('固定资料正在准备，请稍候。');await register(fixedDataStatus.demo_root);});
+bind('prepared',async()=>{if(!fixedDataStatus?.ready)throw Error('固定资料正在准备，请稍候。');await register(fixedDataStatus.formal_root);});
 bind('prepare',()=>start(request('prepare'),'prepareBlocks'));
 bind('importReviews',async()=>{if(!resource)throw Error('请先登记对应资源');const report=await api('resources/'+resource+'/reviews',JSON.parse($('reviewManifest').value));resourceSummary(report);notice('已校验并导入审核记录。记录与资源 SHA 绑定，其他门槛仍单独检查。','ok');});
 async function saveModel(){
- experimentReady=false;$('experiment').disabled=true;
+ experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;
  const endpoint=$('endpoint').value.trim(),model=$('model').value.trim();if(!endpoint||!model)throw Error('请填写实际接口完整地址和主模型名称');
  const concurrency=Number($('concurrency').value);if(!Number.isInteger(concurrency)||concurrency<1||concurrency>32)throw Error('正式实验并发数应为 1–32 的整数');
  await api('settings',{base_url:endpoint,model,secondary_model:$('secondary').value.trim(),timeout_seconds:120},'PUT');
- const values={concurrency,models:{primary:model,secondary:$('secondary').value.trim()||null},provider:{endpoint,max_output_tokens:2048,reserve_input_tokens:131072,timeout_seconds:120,stream:true,reasoning_effort:'low'}};
+ const provider={endpoint,max_output_tokens:Number($('maxOutput').value),reserve_input_tokens:131072,timeout_seconds:Number($('providerTimeout').value),stream:$('providerStream').checked,response_format:$('responseFormat').value};
+ if($('providerApiStyle').value)provider.api_style=$('providerApiStyle').value;
+ if($('reasoningEffort').value.trim())provider.reasoning_effort=$('reasoningEffort').value.trim();
+ const values={concurrency,models:{primary:model,secondary:$('secondary').value.trim()||null},provider};
  const current=profiles.find(p=>p.profile_id===profile);
  const adopted=profile==='formal-v1'||current?.status==='frozen'?await api('profiles/'+profile+'/clone',values):await api('profiles/'+profile,values,'PUT');profile=adopted.profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);
  if($('key').value){const result=await api('credentials/session',{api_key:$('key').value});credential=result.credential_ref;savedState?.saveCredential(session,credential);$('key').value='';$('key').placeholder='本次会话已保存密钥';}
- await refreshProfiles();return adopted;
+ await refreshProfiles();fillProfile();return adopted;
 }
 bind('save',async()=>{await saveModel();notice('模型方案已保存；单题串行，正式实验使用配置的并发数。','ok');});
 bind('check',async()=>{
  const adopted=await saveModel(),count=adopted.concurrency;
- const controls=['save','endpoint','model','secondary','concurrency','profiles','key'];
+ const controls=['save','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
  for(const id of controls)$(id).disabled=true;
  $('providerCheckStatus').textContent=`检查中：先测单请求，再测 ${count} 路并发…`;
  try{
-  const report=await api('provider/check',{settings:{...adopted.provider,model:adopted.models.primary,concurrency:count},credential_ref:credential,level:'compatibility'});
-  const text=`单请求${report.single.ready?'通过':'未通过'}；${count} 路检查 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
+  const report=await api('provider/check',{settings:{...adopted.provider,model:adopted.models.primary,concurrency:count,require_vision:true},credential_ref:credential,level:'compatibility'});
+  const text=`文本${report.single.ready?'通过':'未通过'}；图像${report.vision?.ready?'通过':'未通过'}；${count} 路并发 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
+  if(report.ready&&report.effective_provider){await api('profiles/'+profile,{provider:report.effective_provider},'PUT');await refreshProfiles();fillProfile();}
   $('providerCheckStatus').textContent=text; $('providerCheckDetails').textContent=pretty(report);
   notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
  }finally{for(const id of controls)$(id).disabled=false;}
 });
-for(const id of ['endpoint','model','secondary','concurrency'])$(id).addEventListener('input',()=>{experimentReady=false;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
+for(const id of ['endpoint','model','secondary','concurrency','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'])$(id).addEventListener('input',()=>{experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
 
 // ---------- 3 正式实验 ----------
 let experimentReady=false;
 function renderPreflight(p){
  $('preflightDetails').textContent=pretty(p);
  if(p.budget_remaining!==undefined)$('budgetRemaining').textContent=Number(p.budget_remaining).toLocaleString();
+ if(p.attempt_limit!==undefined)$('plannedAttemptLimit').textContent=Number(p.attempt_limit).toLocaleString();
+ if(p.estimated_logical_generations!==undefined)$('plannedGenerations').textContent=Number(p.estimated_logical_generations).toLocaleString();
  box('preflightResult',p.ready?`预检通过，预计新增 ${p.estimated_additional_attempts} 次模型调用。`:`尚未就绪，还有 ${p.blocking_items.length} 项需要完成。`,p.ready?'ok':'warn');
  renderBlocks('preflightBlocks',p.blocking_items);
 }
@@ -221,8 +235,29 @@ async function start(q,blocksId){
  await refresh();
 }
 bind('demo',async()=>{$('demoStatus').textContent='预检中…';try{await start(request('demo'),'demoBlocks');}catch(e){$('demoStatus').textContent='';throw e;}});
-bind('preflight',async()=>{const p=await api('runs/preflight',request('experiment',true));renderPreflight(p);experimentReady=p.ready;$('experiment').disabled=!p.ready;stepStatus('experiment',p.ready?'预检通过':`${p.blocking_items.length} 项待完成`,p.ready?'ok':'warn');notice(p.ready?'正式预检通过':'正式实验尚未就绪：'+joinReasons(p.blocking_items),p.ready?'ok':'warn');});
-bind('experiment',()=>start(request('experiment',true)));
+async function prepareExperiment(){
+ const controls=['save','check','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
+ for(const id of controls)$(id).disabled=true;
+ try{
+ await saveModel();
+ box('preflightResult','正在检查固定资料、模型文本与图像能力及并发，并冻结本次配置…','run');
+ $('preflightBlocks').replaceChildren();
+ let p=await api('experiments/prepare',{model_profile_id:profile,credential_ref:credential});
+ if(p.state==='preparing_data'){
+  pendingExperimentPreparation=true;await refreshFixedData();
+  notice('固定资料正在自动准备，下载完成后会继续检查。');
+  return;
+ }
+ if(p.resource_set_id){resource=p.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);}
+ if(p.model_profile_id){profile=p.model_profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);}
+ await refreshProfiles();fillProfile();renderPreflight(p);
+ experimentReady=p.ready;preparedExperiment=p.ready?p.request:null;$('experiment').disabled=!p.ready;
+ stepStatus('experiment',p.ready?'准备完成，可启动':reasonNames[p.blocking_items?.[0]]||'准备未完成',p.ready?'ok':'warn');
+ notice(p.ready?'正式实验已准备完成。':joinReasons((p.blocking_items||[]).slice(0,2)),p.ready?'ok':'warn');
+ }finally{for(const id of controls)$(id).disabled=false;}
+}
+bind('preflight',prepareExperiment);
+bind('experiment',()=>{if(!preparedExperiment)throw Error('请先准备正式实验。');return start({...preparedExperiment,client_request_id:crypto.randomUUID()});});
 
 const stateNames={queued:'排队中',validating:'校验中',running:'运行中',pause_requested:'正在暂停',paused:'已暂停',cancel_requested:'正在取消',cancelled:'已取消',completed:'已完成',failed:'失败',blocked:'受阻',interrupted:'已中断'};
 const kindNames={demo:'单题演示',experiment:'正式实验',verify:'结果复核',prepare:'重建输入'};
@@ -355,6 +390,21 @@ bind('results',needRun(results));
 bind('verify',needRun(async()=>{const origin=await api('runs/'+run+'/origin'),q=request('verify');q.profile_id=origin.profile_id;q.resource_set_id=origin.resource_set_id;await start(q,'resultsBlocks');}));
 bind('export',needRun(async()=>{const result=await api('runs/'+run+'/export',{});renderBlocks('resultsBlocks',result.exported?[]:[...result.blocking_items,...(result.missing||[]).map(m=>'缺少 '+m)],'尚不能导出');notice(result.exported?'课程专用包已生成：'+result.archive:'尚不能导出：'+joinReasons(result.blocking_items)+(result.missing?'；缺少 '+result.missing.join('、'):''),result.exported?'ok':'warn');}));
 
+async function refreshFixedData(){
+ const d=await api('data/status');fixedDataStatus=d;
+ const downloaded=d.downloaded_bytes,total=d.total_bytes;
+ $('dataSetupStatus').textContent=d.ready?'固定主集与开发资料已校验，可直接使用。':['failed','invalid','configuration_error','conflict'].includes(d.state)?(d.message||'资料下载未完成，请重试。'):downloaded?`正在下载固定资料：${(downloaded/1048576).toFixed(1)}${total?' / '+(total/1048576).toFixed(1):''} MiB`:'正在自动校验并准备固定实验资料…';
+ $('dataRetry').hidden=!['failed','invalid','configuration_error','conflict'].includes(d.state);$('reviewed').disabled=!d.ready;$('prepared').disabled=!d.ready;
+ if(d.ready&&(!resource||['formal-v1','formal-v1-course'].includes(resource))){await register(d.formal_root);}
+ if(d.ready&&pendingExperimentPreparation){pendingExperimentPreparation=false;await prepareExperiment();}
+ if(!d.ready&&!['failed','invalid','configuration_error','conflict'].includes(d.state)){
+  if(d.state==='not_started')await api('data/prepare',{});
+  setTimeout(()=>refreshFixedData().catch(e=>{$('dataSetupStatus').textContent=e.message;}),1500);
+ }
+ return d;
+}
+bind('dataRetry',async()=>{await api('data/prepare',{});await refreshFixedData();});
+
 // ---------- start ----------
 (async()=>{try{
  const caps=await refreshProfiles();session=caps.session_id;
@@ -368,7 +418,8 @@ bind('export',needRun(async()=>{const result=await api('runs/'+run+'/export',{})
  $('connection').textContent='本机服务已连接';$('connection').className='conn ok';
  const defaults=await api('demo-defaults');$('resourcePath').value=defaults.legacy_root;$('outputDirectory').value=defaults.workspace;$('workspaceStatus').textContent='当前结果位置：'+defaults.workspace;
  const s=caps.settings||{};$('endpoint').value=s.base_url||'';$('model').value=s.model||'';$('secondary').value=s.secondary_model||'';fillProfile();
- notice('本机服务已连接。先在「配置与资源」登记开发材料，即可运行规则问答。');
+ notice('本机服务已连接，固定实验资料正在自动准备。');
+ await refreshFixedData();
  // Remembered ids may belong to another workspace; a failed restore is not a lost connection.
  if(resource){try{const report=await api('resources/'+resource);await loadExamples();restoreDemoState();resourceSummary(report);savedState.set('resource',resource);notice('已恢复配置与资料。');}catch(e){notice('上次登记的资料在当前工作区不可用，请重新登记。（'+e.message+'）','warn');}}
  const pending=savedState.get('pendingRequest');

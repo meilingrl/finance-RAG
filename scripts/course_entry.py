@@ -41,8 +41,9 @@ def build_app(project_root=ROOT, workspace=None):
     @app.get('/api/v1/demo-defaults')
     def demo_defaults():
         return {'legacy_root': str(root / 'data/processed/nonllm-pilot-v5'),
-                'reviewed_root': str(root / 'data/development-reviewed-v1'),
-                'formal_root': str(root / 'data/formal-v1'),
+                'reviewed_root': str(root / 'data/fixed-course-v1/demo'),
+                'formal_root': str(root / 'data/fixed-course-v1/formal'),
+                'candidate_root': str(root / 'data/formal-v1'),
                 'workspace': str(service.workspace)}
 
     def inputs(rid, filename):
@@ -174,7 +175,9 @@ def main(argv=None):
                                 webbrowser.open(url);return
                     except OSError:time.sleep(.25)
             threading.Thread(target=open_when_ready,daemon=True).start()
-        uvicorn.run(build_app(ROOT,args.workspace),host='127.0.0.1',port=port)
+        application=build_app(ROOT,args.workspace)
+        if (ROOT/'configs/fixed_dataset.json').is_file():application.state.service.begin_fixed_data_setup()
+        uvicorn.run(application,host='127.0.0.1',port=port)
         return 0
     service = ApplicationService(ROOT, resolve_workspace(ROOT,args.workspace))
     if args.command == 'execute':

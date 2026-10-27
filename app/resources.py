@@ -54,13 +54,17 @@ class ResourceRegistry:
   if m['purpose']=='formal':
    if 'model' not in kinds:blocks.append('model_missing')
    if not course and not record.get('reviews'):blocks.append('reviews_missing')
-   q=m.get('qualification',{})
-   for k in ('source_disjoint','cohorts_validated','inputs_complete','development_passed','validation_passed','compatibility_passed','throughput_passed','budget_validated'):
-    if course and k in ('development_passed','validation_passed'):continue
-    if q.get(k) is not True:blocks.append('qualification_'+k)
-   # Qualification attestations require a bound evidence file, not booleans alone.
-   evidence=q.get('evidence_sha256')
-   if not evidence or not any(i['sha256']==evidence and i['status']=='ready' for i in items):blocks.append('qualification_evidence_missing')
+   if course:
+    from .course_readiness import qualify_course_resources
+    checks=qualify_course_resources(record,verified_resources=items)
+    blocks+=checks['blocking_items']
+   else:
+    q=m.get('qualification',{})
+    for k in ('source_disjoint','cohorts_validated','inputs_complete','development_passed','validation_passed','compatibility_passed','throughput_passed','budget_validated'):
+     if q.get(k) is not True:blocks.append('qualification_'+k)
+    # Human-mode qualification attestations remain bound to evidence files.
+    evidence=q.get('evidence_sha256')
+    if not evidence or not any(i['sha256']==evidence and i['status']=='ready' for i in items):blocks.append('qualification_evidence_missing')
    if not blocks:ready+=['experiment','freeze']
   else:blocks.append('demo_only_resources')
   evaluation=[item for item in items if item['kind']=='evaluation']

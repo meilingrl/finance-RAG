@@ -1,4 +1,4 @@
-"""Bounded Responses transport; diagnostics never retain URLs, bodies or credentials."""
+"""Bounded Responses/Chat transport; diagnostics omit URLs, bodies and credentials."""
 import json
 import time
 import urllib.request
@@ -27,15 +27,64 @@ def post_json(endpoint, payload, key, timeout):
     def decode(raw):
         return json.loads(raw.replace(key, '[REDACTED]') if key else raw,
             parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+    stream_kind = None
+    chat = {'object': 'chat.completion', 'choices': {}}
+    def completed_chat():
+        choices = list(chat['choices'].values())
+        if not choices or any(not c['finish_reason'] for c in choices):
+            raise failure('stream_done_without_final_response', stream_state='done_without_final')
+        return {**chat, 'choices': sorted(choices, key=lambda c: c['index'])}
+    def consume_chat(event):
+        nonlocal stream_kind
+        if stream_kind not in (None, 'chat'):
+            raise failure('response_schema_error')
+        stream_kind = 'chat'
+        info['last_event'] = 'chat.chunk'
+        for name in ('id', 'model', 'created'):
+            if name in event:
+                if name in chat and chat[name] != event[name]:
+                    raise failure('response_schema_error')
+                chat[name] = event[name]
+        if event.get('usage') is not None:
+            chat['usage'] = event['usage']
+        if not isinstance(event['choices'], list):
+            raise failure('response_schema_error')
+        for part in event['choices']:
+            if not isinstance(part, dict) or type(part.get('index')) is not int or part['index'] < 0:
+                raise failure('response_schema_error')
+            choice = chat['choices'].setdefault(part['index'], {'index': part['index'], 'finish_reason': None,
+                      'message': {'role': 'assistant', 'content': '', 'refusal': None}})
+            delta = part.get('delta', {})
+            if not isinstance(delta, dict):
+                raise failure('response_schema_error')
+            for name in ('content', 'refusal'):
+                value = delta.get(name)
+                if value is not None:
+                    if not isinstance(value, str) or choice['finish_reason'] is not None and value:
+                        raise failure('response_schema_error')
+                    choice['message'][name] = (choice['message'][name] or '') + value
+            if part.get('finish_reason') is not None:
+                if not isinstance(part['finish_reason'], str) or choice['finish_reason'] is not None:
+                    raise failure('response_schema_error')
+                choice['finish_reason'] = part['finish_reason']
     def consume(frame):
+        nonlocal stream_kind
         info['frames_received'] += 1
         content = '\n'.join(frame)
         if content == '[DONE]':
+            if stream_kind == 'chat':
+                return completed_chat()
             raise failure('stream_done_without_final_response', stream_state='done_without_final')
         event = decode(content)
         if not isinstance(event, dict):
             raise failure('response_schema_error')
         kind = event.get('type')
+        if 'choices' in event:
+            consume_chat(event)
+            return None
+        if stream_kind == 'chat' and kind != 'error':
+            raise failure('response_schema_error')
+        stream_kind = 'responses'
         info['last_event'] = kind if kind in ('response.created', 'response.in_progress', 'response.output_text.delta', 'response.completed', 'response.failed', 'response.incomplete', 'error') else 'other'
         if kind in ('response.completed', 'response.failed', 'response.incomplete'):
             if not isinstance(event.get('response'), dict):
@@ -47,7 +96,7 @@ def post_json(endpoint, payload, key, timeout):
     try:
         with urllib.request.build_opener(NoRedirect()).open(request, timeout=timeout) as reply:
             info['http_status'] = reply.status
-            if 'text/event-stream' in reply.headers.get('Content-Type', ''):
+            if 'text/event-stream' in reply.headers.get('Content-Type', '').lower():
                 frame, pending = [], b''
                 info['stream_state'] = 'receiving'
                 while True:
