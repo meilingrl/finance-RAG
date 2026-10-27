@@ -38,10 +38,35 @@ class TransportTests(unittest.TestCase):
   from formal_src.provider import post_json,APIError
   with server() as (url,handler):
    self.assertEqual(post_json(url+'/sse',{},'test-secret',2)['id'],'r')
-   with self.assertRaisesRegex(APIError,'stream_ended_without_final_response'):post_json(url+'/done',{},'test-secret',2)
-   with self.assertRaisesRegex(APIError,'stream_size_or_time_limit'):post_json(url+'/oversize',{},'test-secret',2)
+   with self.assertRaisesRegex(APIError,'stream_done_without_final_response'):post_json(url+'/done',{},'test-secret',2)
+   with self.assertRaisesRegex(APIError,'stream_size_limit'):post_json(url+'/oversize',{},'test-secret',2)
  def test_redirects_remain_rejected_and_no_key_forwarded(self):
   from formal_src.provider import post_json,APIError
   with server() as (url,handler):
    with self.assertRaisesRegex(APIError,'redirect_rejected'):post_json(url+'/redirect',{},'test-secret',2)
    self.assertEqual([r['path'] for r in handler.seen],['/redirect'])
+
+ def test_stream_diagnostics_and_final_frame_without_blank_line(self):
+  from unittest.mock import patch,MagicMock
+  from formal_src.http_transport import post_json,TransportFailure
+  for data,code,state in [(b'data: {"type":"response.created"}\n\n','stream_eof_without_final_response','eof_without_final'),(b'data: [DONE]\n\n','stream_done_without_final_response','done_without_final')]:
+   reply=MagicMock();reply.__enter__.return_value=reply;reply.status=200;reply.headers={'Content-Type':'text/event-stream'};reply.read1.side_effect=[data,b'']
+   with patch('urllib.request.build_opener') as opener:
+    opener.return_value.open.return_value=reply
+    with self.assertRaises(TransportFailure) as caught:post_json('https://example.invalid/secret-path',{},'secret-key',2)
+    self.assertEqual(str(caught.exception),code);self.assertEqual(caught.exception.diagnostics['stream_state'],state)
+    self.assertEqual(caught.exception.diagnostics['frames_received'],1)
+    self.assertNotIn('secret',json.dumps(caught.exception.diagnostics))
+  reply.read1.side_effect=[b'data: {"type":"response.completed","response":{"id":"last"}}',b'']
+  with patch('urllib.request.build_opener') as opener:
+   opener.return_value.open.return_value=reply
+   self.assertEqual(post_json('https://example.invalid',{},'secret-key',2),{'id':'last'})
+ def test_timeout_diagnostics_do_not_include_exception_message(self):
+  from unittest.mock import patch
+  from formal_src.http_transport import post_json,TransportFailure
+  with patch('urllib.request.build_opener') as opener:
+   opener.return_value.open.side_effect=TimeoutError('secret-key https://private.invalid')
+   with self.assertRaises(TransportFailure) as caught:post_json('https://example.invalid',{},'secret-key',2)
+   self.assertEqual(str(caught.exception),'transport_TimeoutError')
+   self.assertEqual(caught.exception.diagnostics['cause_type'],'TimeoutError')
+   self.assertNotIn('secret-key',str(caught.exception.diagnostics))
