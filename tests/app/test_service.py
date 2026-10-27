@@ -118,7 +118,9 @@ class ResumeIntegrityTests(unittest.TestCase):
    def checked(identity):
     out=original_check(identity);barrier.wait(timeout=3);return out
    def spawn(*args,**kw):
-    child=original_popen(*args,**kw);spawned.append(child.pid);return child
+    child=original_popen(*args,**kw)
+    if '--run-dir' in args[0]:spawned.append(child.pid)
+    return child
    with patch.object(s.jobs,'resume_checks',side_effect=checked),patch('app.jobs.subprocess.Popen',side_effect=spawn):
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
      results=list(pool.map(lambda _:s.control_run(rid,'resume'),range(2)))
@@ -161,7 +163,9 @@ class ResumeIntegrityTests(unittest.TestCase):
     if ordinal:time.sleep(.5)
     return out
    def spawn(*args,**kw):
-    child=original_popen(*args,**kw);spawned.append(child.pid);return child
+    child=original_popen(*args,**kw)
+    if '--run-dir' in args[0]:spawned.append(child.pid)
+    return child
    def resume(_):
     with TestClient(create_app(s)) as client:return client.post('/api/v1/runs/'+rid+'/control',headers={'x-session-id':s.session_id},json={'action':'resume'})
    with patch.object(s.jobs,'resume_checks',side_effect=checked),patch('app.jobs.subprocess.Popen',side_effect=spawn):

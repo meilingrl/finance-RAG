@@ -92,7 +92,7 @@ class ApplicationService:
    return {'ready':False,'blocking_items':['provider_generation_failed'],'sent_attempts':1,'level':'generation','purpose':'operational_probe'}
   ready=result.get('status')=='answered' and result.get('parsed_answer')=='READY'
   return {'ready':ready,'blocking_items':[] if ready else ['operational_marker_not_answered'],'sent_attempts':1,'level':'generation','purpose':'operational_probe','model':config['model'],'response_id':result.get('response_id')}
- def register_resources(self,root_path):return self.resources.register(root_path)
+ def register_resources(self,root_path,review_policy=None):return self.resources.register(root_path,review_policy)
  def check_resources(self,resource_set_id):return self.resources.check(resource_set_id)
  def import_reviews(self,resource_set_id,review_manifest):return self.resources.import_reviews(resource_set_id,review_manifest)
  def _compiled_plan(self,resource_set_id):
@@ -101,7 +101,7 @@ class ApplicationService:
   bindings=[v for v in projection['resources'] if Path(v['path']).name=='cohorts.json']
   if len(bindings)!=1:raise ValueError('Cohort binding required')
   cohorts=read(Path(projection['root'])/bindings[0]['path'])
-  return compile_run_plan(CANONICAL_PROFILE,cohorts)
+  return compile_run_plan(CANONICAL_PROFILE,cohorts,execution_scope=self.resources.record(resource_set_id)['manifest'].get('execution_scope','full'))
  def freeze_profile(self,profile_id,resource_set_id,model_profile_id=None):
   draft=self._profile(profile_id);r=self.check_resources(resource_set_id);blocks=[]
   if 'freeze' not in r['ready_for']:blocks+=r['blocking_items'] or ['resources_not_ready']
@@ -114,22 +114,26 @@ class ApplicationService:
   adopted=self._profile(model_profile_id)
   plan=self._compiled_plan(resource_set_id)
   record=self.resources.record(resource_set_id)
-  from formal_src.verification import validate_audit_plan,_digest
-  bindings=[b for b in record['manifest']['resources'] if Path(b['path']).name=='audit_plan.json' and b['kind']=='review']
-  if len(bindings)!=1:return dict(frozen=False,blocking_items=['preregistered_audit_plan_required'])
-  audit_plan=read(Path(record['root'])/bindings[0]['path'])
-  audit_sha=_digest(audit_plan)
-  try:validate_audit_plan(audit_plan,plan['units'],audit_sha)
-  except (ValueError,KeyError,TypeError):return dict(frozen=False,blocking_items=['preregistered_audit_plan_invalid'])
-  readiness={'cohorts_verified':True,'models_verified':True,'resources_verified':True,'human_reviews_complete':True}
+  from formal_src.course_policy import automatic
+  course=automatic(record['manifest']);audit_sha=None
+  if course:draft={**draft,'review_policy':'automatic_course'}
+  else:
+   from formal_src.verification import validate_audit_plan,_digest
+   bindings=[b for b in record['manifest']['resources'] if Path(b['path']).name=='audit_plan.json' and b['kind']=='review']
+   if len(bindings)!=1:return dict(frozen=False,blocking_items=['preregistered_audit_plan_required'])
+   audit_plan=read(Path(record['root'])/bindings[0]['path'])
+   audit_sha=_digest(audit_plan)
+   try:validate_audit_plan(audit_plan,plan['units'],audit_sha)
+   except (ValueError,KeyError,TypeError):return dict(frozen=False,blocking_items=['preregistered_audit_plan_invalid'])
+  readiness={'cohorts_verified':True,'models_verified':True,'resources_verified':True,'human_reviews_complete':not course}
   frozen=freeze_formal_profile(draft,models=adopted.get('models',{}),provider=adopted.get('provider',{}),prompt_sha=hashlib.sha256(INSTRUCTIONS.encode()).hexdigest(),resource_manifest_sha=digest(record['manifest']),code_sha=self._code_sha(),readiness=readiness,concurrency=adopted.get('concurrency',4),audit_plan_sha256=audit_sha)
   atomic(self.workspace/'profiles'/f'{profile_id}.json',frozen)
   return dict(frozen=True,profile_hash=digest(frozen),freeze_sha=frozen['freeze_sha'],blocking_items=[])
  def _budget(self):
   path=self.workspace/'budget.jsonl';reserved={};categories={'formal':0,'development_validation':0,'retry_demo':0}
   try:
-   for line in path.read_text().splitlines() if path.exists() else []:
-    row=json.loads(line)
+   from formal_src.budget import records
+   for row in records(path):
     if set(('attempt_id','run_id','task_id','request_hash','state','category'))-set(row) or row['category'] not in categories or row['state'] not in ('reserved','sent','completed','unknown'):raise ValueError()
     if row['state']=='reserved':
      old=reserved.get(row['attempt_id'])
@@ -145,6 +149,12 @@ class ApplicationService:
   if not self._worker():blocks.append('kernel_unavailable')
   integrity_verify=q['kind']=='verify' and read(self.jobs.directory(q['source_run_id'])/'spec.json',{}).get('kind')=='demo'
   if q['kind'] not in r['ready_for'] and not (integrity_verify and 'demo' in r['ready_for']):blocks+=r['blocking_items'] or ['resources_not_ready']
+  if q['kind']=='demo' and 'demo' in r['ready_for'] and not self.worker_command:
+   from .demo_readiness import check_demo
+   from formal_src.runner import RunnerBlocked
+   try:blocks+=check_demo(self.resources.inference_projection(q['resource_set_id']),q,p)
+   except RunnerBlocked as exc:blocks.append(str(exc))
+   except (ValueError,KeyError,TypeError,OSError):blocks.append('demo_assets_invalid_or_unapproved')
   if q['kind']=='prepare':
    record=self.resources.record(q['resource_set_id'])
    if p.get('status')=='frozen' or record and (record.get('reviews') or any(v is True for v in record['manifest'].get('qualification',{}).values())):blocks.append('approved_resources_immutable')
@@ -160,7 +170,7 @@ class ApplicationService:
    source=self.jobs.directory(q['source_run_id'])
    if not (source/'sealed.json').exists():blocks.append('source_not_sealed')
   remaining,categories,budget_blocks=self._budget();blocks+=budget_blocks
-  logical=6600 if q['kind']=='experiment' else sum(g!='E1' for g in q['demo_input']['groups']) if q['kind']=='demo' else 0
+  logical=(3600 if self.resources.record(q['resource_set_id'])['manifest'].get('execution_scope')=='main_only' else 6600) if q['kind']=='experiment' else sum(g!='E1' for g in q['demo_input']['groups']) if q['kind']=='demo' else 0
   additional=logical if remaining_generations is None else remaining_generations
   if additional>remaining:blocks.append('budget_exhausted')
   if q['kind']=='demo' and additional and categories['retry_demo']+additional>900:blocks.append('retry_demo_budget_exhausted')
@@ -188,15 +198,28 @@ class ApplicationService:
   state=self.jobs.get(run_id)
   path=self.jobs.directory(run_id)/'attempts.jsonl'
   if path.is_file():
-   latest={r['attempt_id']:r for r in (json.loads(line) for line in path.read_text().splitlines() if line.strip())}
+   from formal_src.budget import peek_latest
+   latest=peek_latest(path)
    state=dict(state,attempt_count=len(latest),failure_count=sum(bool(r.get('error_code')) or r.get('parse_status') in {'failed','parse_error','truncated'} for r in latest.values()))
   return state
+ def find_runs(self,client_request_id=None):
+  from formal_src.contracts import uuid
+  if client_request_id is not None:uuid(client_request_id)
+  runs=[]
+  for path in self.jobs.runs.glob('*/state.json'):
+   try:
+    state=self.jobs.get(path.parent.name)
+    if client_request_id is not None:
+     if read(path.parent/'spec.json')['client_request_id']==client_request_id:return {'run_id':state['run_id']}
+    else:runs.append(state)
+   except (ValueError,KeyError,TypeError):continue
+  return {'run_id':None} if client_request_id is not None else {'runs':sorted(runs,key=lambda s:s['created_at'],reverse=True)[:100]}
  def list_events(self,run_id,after_seq=0):return self.jobs.events(run_id,after_seq)
  def control_run(self,run_id,action):
   s=self.jobs.get(run_id);d=self.jobs.directory(run_id)
   if action not in ('pause','resume','cancel'):raise ValueError('Invalid control')
   if action=='resume':
-   if s['state'] not in ('paused','interrupted','blocked'):raise ValueError('Run cannot resume')
+   if s['state'] not in ('paused','interrupted','blocked','failed'):raise ValueError('Run cannot resume')
    blocks=self.jobs.resume_checks(run_id);spec=read(d/'spec.json')
    request={key:spec[key] for key in RunRequest.required}
    started=(d/'process.json').exists()
@@ -226,6 +249,31 @@ class ApplicationService:
   if s['state'] in ('queued','running','pause_requested','cancel_requested'):
    atomic(d/'control.json',{'action':action});return self.jobs.update(run_id,state=action+'_requested')
   return s
+ def recovery_status(self,run_id):
+  from formal_src.recovery import issues
+  state=self.jobs.get(run_id)
+  if state['state'] not in ('blocked','interrupted','failed','paused'):return {'items':[]}
+  return {'items':issues(self.jobs.directory(run_id))}
+ def resolve_attempt(self,run_id,values):
+  import fcntl
+  from formal_src.recovery import resolve_failure
+  values=self._clean(values)
+  if set(values)!={'attempt_id','note','confirmed'}:raise ValueError('Invalid recovery fields')
+  with self.jobs.lock():
+   state=self.jobs.get(run_id)
+   if state['state'] not in ('blocked','interrupted','paused','failed'):raise ValueError('Run must be stopped')
+   d=self.jobs.directory(run_id)
+   with (d/'worker.lock').open('a+') as owner:
+    try:fcntl.flock(owner,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:raise ValueError('Worker still running') from None
+    result=resolve_failure(d,values['attempt_id'],values['note'],values['confirmed'])
+   # The audit entry is durable; resuming is a separate explicit action.
+   self.jobs.update(run_id,state='blocked',available_actions=['resume','inspect'])
+   return result
+ def get_demo_reference(self,run_id):
+  from .demo_reference import reference_for_run
+  if self.jobs.get(run_id)['state']!='completed':raise ValueError('Reference requires completed run')
+  return reference_for_run(self.project_root,self.jobs.directory(run_id))
  def get_results(self,run_id,view='summary'):
   if view not in ('summary','answers','retrieval','audit'):raise ValueError('Invalid result view')
   s=self.jobs.get(run_id);d=self.jobs.directory(run_id)
