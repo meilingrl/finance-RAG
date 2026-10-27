@@ -13,6 +13,9 @@ def atomic(path,value):
  tmp=path.with_name(path.name+'.'+str(uuid4())+'.tmp')
  with tmp.open('w') as f: json.dump(value,f,allow_nan=False);f.flush();os.fsync(f.fileno())
  os.replace(tmp,path)
+ fd=os.open(str(path.parent),os.O_RDONLY)
+ try:os.fsync(fd)
+ finally:os.close(fd)
 class JobStore:
  def __init__(self,workspace):
   self.root=Path(workspace);self.root.mkdir(parents=True,exist_ok=True);self.runs=self.root/'runs';self.runs.mkdir(exist_ok=True);self._guard=threading.RLock();self._local=threading.local()
@@ -56,9 +59,9 @@ class JobStore:
   with self.lock():
    current=self.get(run_id)
    if expected_updated_at is not None and current['updated_at']!=expected_updated_at:return current
-   if current['state'] not in ('queued','blocked','paused','interrupted'):return current
+   if current['state'] not in ('queued','blocked','paused','interrupted','failed'):return current
    previous=read(directory/'process.json',{})
-   if self._alive(previous.get('pid')):return current
+   if self._alive(previous.get('pid'),previous.get('fingerprint')):return current
    for path in self.runs.glob('*/state.json'):
     other=read(path)
     if other['run_id']!=run_id and other['state'] in ('queued','running','pause_requested','cancel_requested','validating'):
@@ -79,11 +82,11 @@ class JobStore:
     process=subprocess.Popen(list(command)+['--run-dir',str(directory)],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
    except OSError:
     return self.update(run_id,state='blocked',blocking_items=['kernel_start_failed'])
-   atomic(directory/'process.json',{'pid':process.pid,'started_at':now()})
+   atomic(directory/'process.json',{'pid':process.pid,'started_at':now(),'fingerprint':self._fingerprint(process.pid)})
    self.update(run_id,state='running',available_actions=['pause','cancel'],blocking_items=[])
   self._monitor(run_id,process.pid,process,consumed)
  def _monitor(self,run_id,pid,process=None,consumed=None):
-  directory=self.directory(run_id)
+  directory=self.directory(run_id);fingerprint=read(directory/'process.json',{}).get('fingerprint')
   def monitor():
    # Per-run monitor lock allows a restarted HTTP service to adopt its live worker.
    with (directory/'monitor.lock').open('a') as lock:
@@ -99,7 +102,7 @@ class JobStore:
       lines=raw.splitlines() if raw.endswith('\n') else raw.splitlines()[:-1]
       for line in lines[offset:]:self.emit(run_id,json.loads(line));offset+=1
       atomic(directory/'heartbeat.json',{'pid':pid,'time':now()})
-      alive=process.poll() is None if process is not None else self._alive(pid)
+      alive=process.poll() is None if process is not None else self._alive(pid,fingerprint)
       if not alive:break
       time.sleep(.03)
      result=read(directory/'worker-result.json',{})
@@ -110,29 +113,40 @@ class JobStore:
      checks=read(directory/'integrity.json',{})
      checks['outputs']={name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ('predictions.jsonl','tasks.jsonl','retrieval.jsonl','summary.json','results.csv','attempts.jsonl','inputs.json') if (directory/name).is_file()}
      atomic(directory/'integrity.json',checks)
-     self.update(run_id,state=state,available_actions=['resume','inspect'] if state in ('paused','interrupted','blocked') else ['inspect'],blocking_items=result.get('blocking_items',[]))
+     self.update(run_id,state=state,available_actions=['resume','inspect'] if state in ('paused','interrupted','blocked','failed') else ['inspect'],blocking_items=result.get('blocking_items',[]))
     except Exception:
      self.update(run_id,state='failed',blocking_items=['invalid_worker_output'])
   threading.Thread(target=monitor,daemon=True).start()
  @staticmethod
- def _alive(pid):
+ def _fingerprint(pid):
+  if not pid:return None
+  try:
+   value=subprocess.check_output(['ps','-p',str(pid),'-o','lstart='],stderr=subprocess.DEVNULL,timeout=2).strip()
+   return hashlib.sha256(value).hexdigest() if value else None
+  except (subprocess.SubprocessError,OSError):return None
+ @staticmethod
+ def _alive(pid,fingerprint=None):
   try:
    if not pid:return False
-   os.kill(pid,0);return True
+   os.kill(pid,0);return fingerprint is None or JobStore._fingerprint(pid)==fingerprint
   except ProcessLookupError:return False
  def recover(self):
   for p in self.runs.glob('*/state.json'):
    s=read(p)
    if s['state'] not in ('running','queued','pause_requested','cancel_requested','validating'):continue
    proc=read(p.parent/'process.json',{});pid=proc.get('pid')
-   if self._alive(pid):self._monitor(s['run_id'],pid)
+   if self._alive(pid,proc.get('fingerprint')):self._monitor(s['run_id'],pid)
    else:self.update(s['run_id'],state='interrupted',available_actions=['resume','inspect'])
  def resume_checks(self,run_id):
   d=self.directory(run_id);spec=read(d/'spec.json');checks=read(d/'integrity.json',{})
   if digest(spec)!=checks.get('spec_sha'):return ['saved_spec_changed']
-  records=[json.loads(l) for l in (d/'attempts.jsonl').read_text().splitlines()] if (d/'attempts.jsonl').exists() else []
-  latest={r['attempt_id']:r for r in records}
-  if any(r.get('state') in ('sent','unknown') for r in latest.values()):return ['unknown_attempt_requires_inspection']
+  from formal_src.budget import peek_latest
+  try:latest=peek_latest(d/'attempts.jsonl')
+  except ValueError:return ['attempt_ledger_invalid']
+  from formal_src.recovery import receipt_for
+  try:
+   if any(r.get('state') in ('sent','unknown') and not receipt_for(d,r) for r in latest.values()):return ['unknown_attempt_requires_inspection']
+  except ValueError:return ['recovery_identity_changed']
   for path,sha in checks.get('outputs',{}).items():
    target=(d/path).resolve()
    if not target.is_relative_to(d.resolve()) or not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest()!=sha:return ['saved_output_changed']

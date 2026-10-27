@@ -29,3 +29,8 @@ class JobsTest(unittest.TestCase):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);s=ApplicationService(root,root/'w');r=s.start_run(request());rid=r['run_id'];s.jobs.update(rid,state='running');atomic(s.jobs.directory(rid)/'process.json',{'pid':99999999})
    reopened=ApplicationService(root,root/'w');self.assertEqual(reopened.get_run(rid)['state'],'interrupted')
+ def test_recycled_pid_is_not_adopted_as_worker(self):
+  import os
+  from app.jobs import JobStore
+  self.assertFalse(JobStore._alive(os.getpid(),'not-the-original-process'))
+  self.assertTrue(JobStore._alive(os.getpid(),JobStore._fingerprint(os.getpid())))
