@@ -6,6 +6,8 @@ let savedState=null,restoring=true,referenceQuestion='',operationClient=null,ope
 let fixedDataStatus=null,preparedExperiment=null,pendingExperimentPreparation=false;
 let dataTimer=null,dataFailures=0,dataRefreshing=false;
 let eventRun='',eventCursor=0,eventHistory=[];
+let savedModelFingerprint='',checkedModelFingerprint='',modelBusy=false,modelBusyLabel='',modelCheckFailed=false;
+const modelFields=['endpoint','model','secondary','concurrency','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
 let syntheticOutput=false,answerPage=0,runKind='';
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!==null&&c!==undefined));return node;};
 const short=id=>id?(id.length>14?id.slice(0,8)+'…':id):'';
@@ -107,7 +109,54 @@ settleOn(target,{scroll:location.hash.length>1});render();
 function stepStatus(name,text,tone=''){const s=$('status-'+name);s.textContent=text;s.dataset.tone=tone;$('rail-'+name).dataset.tone=tone;$('rail-'+name).title=text;}
 
 // ---------- feedback ----------
-const notice=(s,tone='info')=>{$('notice').textContent=s;$('notice').dataset.tone=tone;};
+let noticeTimer=null;
+const notice=(s,tone='info')=>{clearTimeout(noticeTimer);$('notice').hidden=false;$('noticeText').textContent=s;$('notice').dataset.tone=tone;if(tone==='ok')noticeTimer=setTimeout(()=>{$('notice').hidden=true;},6000);};
+$('dismissNotice').onclick=()=>{$('notice').hidden=true;clearTimeout(noticeTimer);};
+function fitFeedback(){stage.style.setProperty('--header-height',Math.ceil(document.querySelector('.meta').getBoundingClientRect().height)+'px');stage.style.setProperty('--notice-height',$('notice').hidden?'0px':Math.ceil($('notice').getBoundingClientRect().height+12)+'px');}
+const feedbackObserver=new ResizeObserver(fitFeedback);feedbackObserver.observe(document.querySelector('.meta'));feedbackObserver.observe($('notice'));fitFeedback();
+function modelFingerprint(){return JSON.stringify(modelFields.map(id=>$(id).type==='checkbox'?$(id).checked:$(id).value.trim()));}
+function renderModelStatus(){
+ const dirty=!!$('key').value||!!savedModelFingerprint&&modelFingerprint()!==savedModelFingerprint;
+ const checked=checkedModelFingerprint===modelFingerprint()&&!dirty&&!modelCheckFailed&&!operationClient?.pending();
+ const incomplete=!$('endpoint').value.trim()||!$('model').value.trim();
+ const pending=operationClient?.pending();
+ const state=modelBusy?modelBusyLabel:pending?'结果待确认':dirty?'未保存修改':modelCheckFailed?'需重新检查':checked?'检查通过':incomplete?'待配置':'已保存 · 待检查';
+ $('modelState').textContent=state;$('modelState').dataset.tone=modelBusy?'run':checked?'ok':dirty||modelCheckFailed||pending?'warn':'neutral';
+ $('modelNext').textContent=modelBusy?'请稍候，切换页面不会重复提交。':pending?'请继续查看原检查，确认结果后再修改配置。':dirty?'修改尚未生效，保存后需重新检查。':checked?'当前设置检查通过；正式实验仍需准备并冻结。':incomplete?'填写服务地址与主模型；E1规则演示无需配置模型。':'下一步：检查模型能力，或前往正式实验准备。';
+ const current=profiles.find(p=>p.profile_id===profile);
+ if($('save').getAttribute('aria-busy')!=='true')$('save').textContent=profile==='formal-v1'||current?.status==='frozen'?'另存为自定义方案':'保存配置';
+ $('keyStatus').textContent=$('key').value?'已填写，保存后用于本次会话。':credential?'本次会话已设置；服务重启后需重新填写。':'尚未设置密钥；规则演示无需密钥。';
+ $('advancedSummary').textContent=`${$('providerApiStyle').selectedOptions[0]?.textContent||'自动识别'} · 输出上限 ${$('maxOutput').value||'—'} · ${$('providerTimeout').value||'—'} 秒`;
+ $('experimentHint').textContent=experimentReady?'准备已通过，可以启动当前已冻结方案。':pending?'原检查尚未确认，请在下方继续查看。':'请先完成“准备并检查”，通过后即可启动。';
+ $('ctxProfile').title='当前配置：'+profile;
+ $('ctxResource').title='当前资料：'+(resource||'未登记');
+ $('ctxRun').title='正在查看的运行：'+(run||'无');
+}
+function clearFieldError(id){$(id).removeAttribute('aria-invalid');const node=$(id+'Error');if(node){node.hidden=true;node.textContent='';}}
+function validateModelFields(){
+ const errors={};
+ if(!$('endpoint').value.trim())errors.endpoint='请填写模型服务地址。';
+ else{try{const url=new URL($('endpoint').value.trim());if(!['http:','https:'].includes(url.protocol)||!url.hostname)throw Error();if(url.username||url.password||url.search||url.hash)errors.endpoint='地址中不能包含密钥、用户名、查询参数或片段。';}catch{errors.endpoint='请输入完整的 http:// 或 https:// 服务地址。';}}
+ if(!$('model').value.trim())errors.model='请填写渠道实际支持的主模型名称。';
+ const concurrency=Number($('concurrency').value);
+ if(!Number.isInteger(concurrency)||concurrency<1||concurrency>32)errors.concurrency='并发数应为1–32的整数。';
+ const output=Number($('maxOutput').value),timeout=Number($('providerTimeout').value);
+ if(!Number.isInteger(output)||output<=0)errors.maxOutput='输出上限应为正整数。';
+ if(!Number.isFinite(timeout)||timeout<=0)errors.providerTimeout='请求超时应为大于零的秒数。';
+ for(const id of ['endpoint','model','concurrency','maxOutput','providerTimeout']){clearFieldError(id);if(errors[id]){$(id).setAttribute('aria-invalid','true');$(id+'Error').textContent=errors[id];$(id+'Error').hidden=false;}}
+ const first=Object.keys(errors)[0];
+ if(first)throw Object.assign(Error('请先修正标出的配置项。'),{field:first});
+}
+function modelError(error){
+ modelCheckFailed=true;checkedModelFingerprint='';
+ const fields={provider_endpoint_invalid:'endpoint',model_not_adopted:'model',concurrency_invalid:'concurrency',provider_timeout_invalid:'providerTimeout',provider_limits_missing:'maxOutput'};
+ const field=error.field||fields[error.code];
+ $('configError').hidden=false;$('configError').textContent=error.message;
+ if(field){$(field).setAttribute('aria-invalid','true');$(field+'Error').textContent=error.field?$(field+'Error').textContent:error.message;$(field+'Error').hidden=false;const details=$(field).closest('details');if(details)details.open=true;showTab('config');$(field).focus();}
+}
+$('toggleKey').onclick=()=>{const visible=$('key').type==='password';$('key').type=visible?'text':'password';$('toggleKey').textContent=visible?'隐藏':'显示';$('toggleKey').setAttribute('aria-pressed',String(visible));};
+$('copyContext').onclick=async()=>{try{await navigator.clipboard.writeText(`当前配置：${profile}\n当前资料：${resource||'未登记'}\n正在查看的运行：${run||'无'}`);notice('当前配置、资料和运行编号已复制。','ok');}catch{notice('无法访问剪贴板；将鼠标停在顶部各项可查看完整编号。','warn');}};
+
 function box(id,text,tone=''){$(id).textContent=text;$(id).dataset.tone=tone;}
 const reasonNames={formal_models_invalid:'模型配置无效，请检查主模型与对照模型',formal_model_missing_primary:'请填写并保存主模型名称',formal_model_missing_secondary:'完整实验包含第二模型对照，请填写并保存对照模型',concurrency_not_verified:'请在配置区完成当前模型与并发数的检查',concurrency_invalid:'并发数应为 1–32 的整数',single_check_failed:'单请求检查未通过，并发检查未执行',profile_not_frozen:'正式方案尚未冻结',demo_only_resources:'当前登记的是旧开发材料',resources_not_ready:'正式资源尚未就绪',model_missing:'尚未登记本地模型',reviews_missing:'人工核验尚未完成',credential_required:'请填写并保存本次会话密钥',kernel_unavailable:'执行模块尚未就绪',source_not_sealed:'原运行尚未封存',execution_slot_busy:'已有任务正在运行',model_profile_required:'请选择已保存的自定义模型方案',approved_resources_immutable:'已审核资料不可重建',evaluation_gold_missing:'缺少绑定的评价资料',provider_generation_failed:'模型服务未完成生成，查看调用记录',qualification_source_disjoint:'来源重复检查待完成',qualification_cohorts_validated:'样本分组检查待完成',qualification_inputs_complete:'待补齐完整输入',qualification_development_passed:'开发检查未通过',qualification_validation_passed:'验证检查未通过',qualification_compatibility_passed:'模型兼容检查未通过',qualification_throughput_passed:'吞吐检查未通过',qualification_budget_validated:'调用预算尚未核定',qualification_evidence_missing:'缺少运行检查记录',course_documents_missing:'课程报告、摘要或成员资料尚未准备',formal_preset_required:'只能冻结固定正式方案',preregistered_audit_plan_required:'缺少预注册审核子集',preregistered_audit_plan_invalid:'预注册审核子集未通过校验',budget_exhausted:'调用额度不足',retry_demo_budget_exhausted:'演示与重试额度不足',category_budget_exceeded:'分类额度已超出',budget_check_failed:'调用账本校验失败',frozen_profile_invalid:'冻结配置校验未通过',code_changed:'代码已变化，与冻结身份不符',resources_changed:'资料已变化，与冻结身份不符',profile_changed:'方案已变化，与运行身份不符',inference_projection_unavailable:'推理输入不可用',formal_plan_unavailable:'正式计划不可编译',model_not_in_catalog:'模型不在服务目录中',operational_marker_not_answered:'连通检查未返回预期标记'};
 Object.assign(reasonNames,{
@@ -143,10 +192,11 @@ async function api(path,body,method='POST',extraHeaders={}) {
   const response=await fetch('/api/v1/'+path,{method:body===undefined?'GET':method,signal:controller.signal,headers:{'Content-Type':'application/json','X-Session-ID':session,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)})});
   let data={};try{data=await response.json();}catch{}
   if(data.code==='invalid_session'){credential=null;throw Object.assign(Error('服务已重启，请刷新页面恢复配置；密钥需重新填写。'),{status:403});}
-  if(!response.ok)throw Object.assign(Error(data.detail||data.message||data.code||'请求未完成（'+response.status+'）'),{status:response.status});return data;
+  if(!response.ok)throw Object.assign(Error(data.detail||data.message||data.code||'请求未完成（'+response.status+'）'),{status:response.status,code:data.code});return data;
  }finally{clearTimeout(timeout);}
 }
-function bind(id,fn){$(id).onclick=async()=>{const button=$(id);button.disabled=true;try{await fn();}catch(e){notice(String(e.message),'error');}finally{button.disabled=false;if(id==='experiment')button.disabled=!experimentReady;}};}
+const busyLabels={save:'保存中…',check:'检查中…',preflight:'准备中…',register:'登记中…',reviewed:'切换中…',prepared:'切换中…',recoverOperation:'读取中…',recoverOperationFormal:'读取中…'};
+function bind(id,fn){$(id).onclick=async()=>{const button=$(id),label=button.textContent;button.disabled=true;button.setAttribute('aria-busy','true');button.textContent=busyLabels[id]||'处理中…';try{await fn();}catch(e){if(['save','check','preflight','recoverOperation','recoverOperationFormal'].includes(id))modelError(e);notice(String(e.message),'error');}finally{button.disabled=false;button.removeAttribute('aria-busy');button.textContent=label;if(id==='experiment')button.disabled=!experimentReady;renderModelStatus();}};}
 function request(kind,canonical=false){
  if(kind==='experiment'&&canonical&&!window.RagState.matchesFrozenModel(profiles.find(p=>p.profile_id==='formal-v1'),{model:$('model').value.trim(),secondary:$('secondary').value.trim(),endpoint:$('endpoint').value.trim(),concurrency:Number($('concurrency').value)}))throw Error('当前模型或并发配置与冻结方案不同，请先保存、检查并重新冻结。');
  return {schema_version:1,client_request_id:crypto.randomUUID(),kind,profile_id:canonical?'formal-v1':profile,resource_set_id:resource,source_run_id:kind==='verify'?run:null,demo_input:kind==='demo'?{doc_id:$('doc').value.trim(),question:$('question').value.trim(),retriever:$('retriever').value,groups:['E1',...['e2','e3','e4'].filter(id=>$(id).checked).map(id=>id.toUpperCase())]}:null};}
@@ -154,19 +204,23 @@ function request(kind,canonical=false){
 // ---------- 1 配置与资源 ----------
 function showProfile(){const current=profiles.find(p=>p.profile_id===profile);$('profiles').value=profile;const status=current?.status||'draft';$('profile').textContent=profile==='formal-v1'?`固定正式方案 · ${status}；开发 E1 无需密钥。`:`当前模型方案：${profile} · ${status}`;$('ctxProfile').textContent=(profile==='formal-v1'?'formal-v1':current?.models?.primary||short(profile))+' · '+status;}
 async function refreshProfiles(){const caps=await api('capabilities');profiles=caps.profiles;$('profiles').replaceChildren(...profiles.map(p=>el('option',{value:p.profile_id,textContent:(p.profile_id==='formal-v1'?'固定正式方案':p.models?.primary||'自定义')+' · '+p.status+' · '+p.profile_id})));if(!profiles.some(p=>p.profile_id===profile))profile='formal-v1';showProfile();return caps;}
-function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);const v=p?.provider||{};$('providerApiStyle').value=v.api_style||'';$('maxOutput').value=v.max_output_tokens||2048;$('providerTimeout').value=v.timeout_seconds||120;$('reasoningEffort').value=v.reasoning_effort||v.reasoning?.effort||'';$('responseFormat').value=v.response_format||'auto';$('providerStream').checked=v.stream!==false;$('concurrency').value=p?.concurrency??4;if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}}
-$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);fillProfile();showProfile();preparedExperiment=null;experimentReady=false;$('experiment').disabled=true;};
+function fillProfile(){const p=profiles.find(x=>x.profile_id===profile);const v=p?.provider||{};$('providerApiStyle').value=v.api_style||'';$('maxOutput').value=v.max_output_tokens||2048;$('providerTimeout').value=v.timeout_seconds||120;$('reasoningEffort').value=v.reasoning_effort||v.reasoning?.effort||'';$('responseFormat').value=v.response_format||'auto';$('providerStream').checked=v.stream!==false;$('concurrency').value=p?.concurrency??4;if(p?.provider){$('endpoint').value=p.provider.endpoint||'';$('model').value=p.models?.primary||'';$('secondary').value=p.models?.secondary||'';}savedModelFingerprint=modelFingerprint();renderModelStatus();}
+$('profiles').onchange=()=>{profile=$('profiles').value;store.set('rag-profile',profile);savedState?.set('profile',profile);fillProfile();showProfile();preparedExperiment=null;experimentReady=false;$('experiment').disabled=true;checkedModelFingerprint='';modelCheckFailed=false;$('configError').hidden=true;renderModelStatus();};
 function resourceSummary(report){
  if(report.resources[0]?.registered_root)$('resourcePath').value=report.resources[0].registered_root;
  $('resourceDetails').textContent=pretty(report);
  const pages=new Set(examples.map(q=>q.doc_id)).size,demoReady=report.ready_for.includes('demo');
- $('resources').replaceChildren(el('strong',{textContent:demoReady?`文件校验通过 · ${examples.length} 个开发问题 · ${pages} 份财报`:'资源待处理'}));
+ const isFormal=report.resources[0]?.registered_root===fixedDataStatus?.formal_root;
+ const resourceLabel=isFormal?'固定主集':report.resources[0]?.registered_root===fixedDataStatus?.demo_root?'开发演示包':'';
+ $('resources').replaceChildren(el('strong',{textContent:isFormal?'固定主集已登记 · 用于正式实验':demoReady?`文件校验通过 · ${examples.length} 个开发问题 · ${pages} 份财报`:'资源待处理'}));
  $('resources').dataset.tone=demoReady?'ok':'warn';
  const blocks=report.blocking_items||[];
  if(blocks.length)$('resources').append(el('br'),demoReady?'正式运行缺项：':'待解决：',joinReasons(blocks));
  else if(demoReady)$('resources').append(el('br'),'正式运行缺项：无');
- $('ctxResource').textContent=short(resource);
- stepStatus('config',demoReady?`资料已登记 · ${examples.length} 题`:'资料待处理',demoReady?'ok':'warn');
+ $('ctxResource').textContent=resourceLabel||short(resource);$('ctxResource').title='当前资料：'+resource;
+ const selected=report.resources[0]?.registered_root||'';
+ $('reviewed').setAttribute('aria-pressed',String(!!selected&&selected===fixedDataStatus?.demo_root));$('prepared').setAttribute('aria-pressed',String(!!selected&&selected===fixedDataStatus?.formal_root));
+ stepStatus('config',isFormal?'固定主集已登记':demoReady?`资料已登记 · ${examples.length} 题`:'资料待处理',demoReady?'ok':'warn');
 }
 async function loadExamples(){
  examples=await api('resources/'+encodeURIComponent(resource)+'/examples');
@@ -182,7 +236,7 @@ function restoreDemoState(){const d=savedState?.demo(resource);if(!d)return;for(
 $('examples').onchange=()=>{selectExample();saveDemoState();};
 for(const id of ['question','doc','retriever','e2','e3','e4'])$(id).addEventListener('input',saveDemoState);
 
-async function register(path,review_policy){const report=await api('resources/register',{root_path:path,...(review_policy?{review_policy}:{})});resource=report.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);await loadExamples();resourceSummary(report);notice('资源已登记，文件已核对；开发资料可用于演示，正式缺项见校验明细。下一步：在「单题演示」运行一题。','ok');}
+async function register(path,review_policy){const report=await api('resources/register',{root_path:path,...(review_policy?{review_policy}:{})});resource=report.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);await loadExamples();resourceSummary(report);notice(path===fixedDataStatus?.formal_root?'固定主集已登记。下一步：填写模型配置，然后在「正式实验」准备并检查。':'开发资料已登记。下一步：在「单题演示」运行一题。','ok');}
 bind('saveWorkspace',async()=>{const result=await api('settings',{output_directory:$('outputDirectory').value.trim()},'PUT');$('workspaceStatus').textContent=result.restart_required?'已保存，下次启动后生效；当前任务与原结果保留在原工作区。':'当前已使用该目录';notice($('workspaceStatus').textContent,'ok');});
 bind('register',()=>register($('resourcePath').value));
 bind('legacy',async()=>register((await api('demo-defaults')).legacy_root));
@@ -193,6 +247,7 @@ bind('importReviews',async()=>{if(!resource)throw Error('请先登记对应资�
 async function saveModel(){
  if(operationClient?.pending())throw Error('上次检查结果尚未确认，请先继续查看原检查。');
  experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;
+ validateModelFields();$('configError').hidden=true;
  const endpoint=$('endpoint').value.trim(),model=$('model').value.trim();if(!endpoint||!model)throw Error('请填写实际接口完整地址和主模型名称');
  const concurrency=Number($('concurrency').value);if(!Number.isInteger(concurrency)||concurrency<1||concurrency>32)throw Error('正式实验并发数应为 1–32 的整数');
  await api('settings',{base_url:endpoint,model,secondary_model:$('secondary').value.trim(),timeout_seconds:120},'PUT');
@@ -202,20 +257,23 @@ async function saveModel(){
  const values={concurrency,models:{primary:model,secondary:$('secondary').value.trim()||null},provider};
  const current=profiles.find(p=>p.profile_id===profile);
  const adopted=profile==='formal-v1'||current?.status==='frozen'?await api('profiles/'+profile+'/clone',values):await api('profiles/'+profile,values,'PUT');profile=adopted.profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);
- if($('key').value){const result=await api('credentials/session',{api_key:$('key').value});credential=result.credential_ref;savedState?.saveCredential(session,credential);$('key').value='';$('key').placeholder='本次会话已保存密钥';}
+ if($('key').value){const result=await api('credentials/session',{api_key:$('key').value});credential=result.credential_ref;savedState?.saveCredential(session,credential);$('key').value='';$('key').placeholder='本次会话已保存密钥';$('key').type='password';$('toggleKey').textContent='显示';$('toggleKey').setAttribute('aria-pressed','false');}
  await refreshProfiles();fillProfile();return adopted;
 }
-bind('save',async()=>{await saveModel();notice('模型方案已保存；单题串行，正式实验使用配置的并发数。','ok');});
-const modelControls=['save','check','preflight','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
-function lockModel(locked){for(const id of modelControls)$(id).disabled=locked;}
+bind('save',async()=>{lockModel(true,'保存中');try{await saveModel();notice('模型方案已保存；单题串行，正式实验使用配置的并发数。','ok');}finally{lockModel(false);}});
+const modelControls=['save','check','preflight','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream','toggleKey','recoverOperation','recoverOperationFormal'];
+function lockModel(locked,label='检查中'){modelBusy=locked;modelBusyLabel=label;for(const id of modelControls)$(id).disabled=locked;renderModelStatus();}
 function operationStatus(message,missing=false){
  $('operationStatus').textContent=message;$('recoverOperation').hidden=!operationClient?.pending();$('forgetOperation').hidden=!missing;
+ $('formalOperation').hidden=!operationClient?.pending();$('operationStatusFormal').textContent=message;$('recoverOperationFormal').hidden=!operationClient?.pending();
+ renderModelStatus();
 }
 async function applyCheckReport(report){
  const count=report.parallel.concurrency;
  const text=`文本${report.single.ready?'通过':'未通过'}；图像${report.vision?.ready?'通过':'未通过'}；${count} 路并发 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
  if(report.ready&&report.effective_provider){await api('profiles/'+profile,{provider:report.effective_provider},'PUT');await refreshProfiles();fillProfile();}
  $('providerCheckStatus').textContent=text;$('providerCheckDetails').textContent=pretty(report);
+ modelCheckFailed=!report.ready;checkedModelFingerprint=report.ready?modelFingerprint():'';if(report.ready)$('configError').hidden=true;renderModelStatus();
  notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
 }
 async function applyOperation(outcome){
@@ -228,9 +286,10 @@ async function applyOperation(outcome){
 async function recoverOperation(){
  lockModel(true);
  try{await applyOperation(await operationClient.recover());}
- finally{lockModel(false);$('recoverOperation').hidden=!operationClient.pending();}
+ finally{lockModel(false);$('recoverOperation').hidden=!operationClient.pending();$('formalOperation').hidden=!operationClient.pending();}
 }
 bind('recoverOperation',recoverOperation);
+bind('recoverOperationFormal',recoverOperation);
 bind('forgetOperation',()=>{operationClient.forget();operationStatus('已结束等待；没有重新提交或取消后台任务。');});
 bind('check',async()=>{
  lockModel(true);
@@ -242,7 +301,7 @@ bind('check',async()=>{
   else await applyCheckReport(await api('provider/check',values));
  }finally{lockModel(false);$('recoverOperation').hidden=!operationClient?.pending();}
 });
-for(const id of ['endpoint','model','secondary','concurrency','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'])$(id).addEventListener('input',()=>{experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
+for(const id of [...modelFields,'key'])$(id).addEventListener('input',()=>{experimentReady=false;preparedExperiment=null;checkedModelFingerprint='';modelCheckFailed=false;$('experiment').disabled=true;clearFieldError(id);$('providerCheckStatus').textContent='配置已修改，保存后需重新检查；单题演示仍使用串行。';renderModelStatus();});
 
 // ---------- 3 正式实验 ----------
 let experimentReady=false;
@@ -286,6 +345,7 @@ async function applyPreparation(p){
  if(p.model_profile_id){profile=p.model_profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);}
  await refreshProfiles();fillProfile();renderPreflight(p);
  experimentReady=p.ready;preparedExperiment=p.ready?p.request:null;$('experiment').disabled=!p.ready;
+ if(p.ready){checkedModelFingerprint=modelFingerprint();modelCheckFailed=false;$('configError').hidden=true;}else{modelCheckFailed=true;}renderModelStatus();
  stepStatus('experiment',p.ready?'准备完成，可启动':reasonNames[p.blocking_items?.[0]]||'准备未完成',p.ready?'ok':'warn');
  notice(p.ready?'正式实验已准备完成。':joinReasons((p.blocking_items||[]).slice(0,2)),p.ready?'ok':'warn');
 }
@@ -306,7 +366,7 @@ function renderRunState(state){
   el('div',{className:'run-head'},el('span',{className:'badge '+tone,textContent:label}),el('strong',{textContent:kind}),el('span',{className:'hint',textContent:'阶段 '+({prepare:'准备输入',generation:'生成回答',scoring:'评分'}[state.phase]||state.phase)})),
   el('dl',{},stat('逻辑生成',`${done}/${total}`),stat('实际尝试',state.attempt_count),stat('在途',state.in_flight_count),stat('失败',state.failure_count),stat('运行 ID',short(state.run_id||run))));
  if(state.blocking_items.length){const b=el('div',{id:'runBlocks'});$('progress').append(b);renderBlocks('runBlocks',state.blocking_items,'待解决');}
- $('ctxRun').textContent=`${short(state.run_id||run)} · ${label}`;
+ $('ctxRun').textContent=`${short(state.run_id||run)} · ${label}`;$('ctxRun').title='正在查看的运行：'+(state.run_id||run);
  if(state.kind==='experiment'){$('plannedGenerations').textContent=total.toLocaleString();stepStatus('experiment',label,tone==='run'?'':tone==='err'?'err':tone);}
  if(state.kind==='demo'){$('demoStatus').textContent=total?`${label} · ${done}/${total}`:label;stepStatus('demo','演示 '+label,tone==='run'?'':tone==='err'?'err':tone);}
 }
