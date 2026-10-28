@@ -113,7 +113,9 @@ def run(spec,emit,control,transport=None,*,run_dir=None):
   except BlockingIOError:return {'state':'blocked','blocking_items':['run_already_running']}
   try:
    return _run_owned(spec,emit,control,transport,rd)
-  except Exception:
+  except Exception as exc:
+   from .diagnostics import record_failure
+   record_failure(rd,exc,'worker_initialization')
    value={'state':'failed','blocking_items':['worker_initialization_failed']};atomic(rd/'worker-result.json',value);return value
   finally:fcntl.flock(ownership,fcntl.LOCK_UN)
 
@@ -505,7 +507,10 @@ def _run_owned(spec,emit,control,transport,rd):
    result=evaluate_subprocess(rd);return finish(result['state'],result.get('blocking_items',[]))
   return finish('completed')
  except (RunnerBlocked,BudgetError,ProviderError,ValueError) as exc:return finish('blocked',[str(exc)])
- except Exception:return finish('failed',['worker_internal_error'])
+ except Exception as exc:
+  from .diagnostics import record_failure
+  record_failure(rd,exc,'worker_execution')
+  return finish('failed',['worker_internal_error'])
 
 def evaluate_subprocess(rd):
  import subprocess,sys

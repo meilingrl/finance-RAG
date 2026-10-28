@@ -30,8 +30,25 @@ class CourseWorkflow:
      # Installer errors contain only fixed paths/verification messages, never provider credentials.
      from .datasets import FixedDatasetError
      detail=str(exc) if isinstance(exc,FixedDatasetError) else type(exc).__name__
-     with self._data_lock:self._data_state={'state':'failed','ready':False,'blocking_items':['fixed_data_unavailable'],
-       'message':'固定资料准备未完成，请检查网络后重试；已有资料保留。','detail':detail}
+     state,code,retryable='failed','fixed_data_unavailable',True
+     message='固定资料下载未完成，请检查网络后重试；也可按应用指南离线安装。已有资料保留。'
+     causes=[];cause=exc
+     while cause is not None and cause not in causes:
+      causes.append(cause);cause=cause.__cause__
+     if any(isinstance(c,PermissionError) for c in causes):
+      code,retryable='fixed_data_permission_denied',False
+      message='无法写入资料目录，请检查项目 data 目录的读写权限后重试；已有资料保留。'
+     elif 'Existing fixed dataset conflict' in detail:
+      state,code,retryable='conflict','fixed_data_conflict',False
+      message='已有资料未通过完整性校验。请保留原目录，按应用指南核对文件并在新目录安装完整固定包；重复下载不会覆盖原资料。'
+     elif 'configuration' in detail.lower():
+      state,code,retryable='configuration_error','fixed_data_configuration_invalid',False
+      message='固定资料配置缺失或无效，请检查 configs/fixed_dataset.json 与项目版本是否匹配。'
+     elif isinstance(exc,FixedDatasetError) and not any(word in detail.lower() for word in ('download','network','connection')):
+      state,code,retryable='invalid','fixed_data_integrity_failed',False
+      message='资料包校验或安装失败，请核对固定版本及 SHA256，或按应用指南使用完整离线包；已有资料保留。'
+     with self._data_lock:self._data_state={'state':state,'ready':False,'blocking_items':[code],
+       'error_code':code,'retryable':retryable,'message':message,'detail':detail}
    self._data_thread=threading.Thread(target=prepare,daemon=True,name='fixed-course-data')
    self._data_thread.start();return dict(self._data_state)
  def prepare_experiment(self,model_profile_id,resource_set_id=None,credential_ref=None):

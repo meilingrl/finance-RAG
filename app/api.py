@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 
 def create_app(service):
  app=FastAPI()
+ from .operations import Operations
+ operations=Operations(service.workspace)
  @app.middleware('http')
  async def local(request,call_next):
   host=request.url.hostname
@@ -18,7 +20,10 @@ def create_app(service):
     if u.scheme not in ('http','https') or u.hostname not in ('localhost','127.0.0.1','::1','testserver') or u.netloc!=request.url.netloc:return JSONResponse({'code':'invalid_origin'},403)
   return await call_next(request)
  @app.exception_handler(Exception)
- async def failure(request,exc):return JSONResponse({'code':'request_failed','message':'Request could not be completed','retryable':False,'blocking_items':[]},400)
+ async def failure(request,exc):
+  from formal_src.diagnostics import record_failure
+  diagnostic=record_failure(service.workspace,exc,'http_request')
+  return JSONResponse({'code':'request_failed','message':'请求未能完成，请查看工作区 diagnostics.json 中的诊断编号和代码位置。','diagnostic_id':diagnostic['diagnostic_id'] if diagnostic else None,'retryable':False,'blocking_items':[]},400)
  @app.exception_handler(ValueError)
  async def invalid(request,exc):
   messages={'provider_limits_missing':'输出上限和输入容量应为正整数',
@@ -34,13 +39,18 @@ def create_app(service):
   if code in messages:return JSONResponse({'code':code,'message':messages[code],'retryable':False,'blocking_items':[code]},400)
   return JSONResponse(exc.to_dict() if isinstance(exc,ContractError) else {'code':'invalid_request','message':'请求参数无效，请检查填写的配置','retryable':False,'blocking_items':[]},400)
  @app.get('/api/v1/capabilities')
- def capabilities():return service.capabilities()
+ def capabilities():return {**service.capabilities(),'background_checks':True}
  @app.get('/api/v1/data/status')
  def data_status():return service.data_status()
  @app.post('/api/v1/data/prepare')
  def data_prepare():return service.begin_fixed_data_setup()
  @app.post('/api/v1/experiments/prepare')
- def experiment_prepare(values:dict):return service.prepare_experiment(values.get('model_profile_id','formal-v1'),values.get('resource_set_id'),values.get('credential_ref'))
+ def experiment_prepare(values:dict,request:Request):
+  action=lambda:service.prepare_experiment(values.get('model_profile_id','formal-v1'),values.get('resource_set_id'),values.get('credential_ref'))
+  op=request.headers.get('x-operation-id')
+  return JSONResponse(operations.start(op,'prepare',values,action),202) if op else action()
+ @app.get('/api/v1/operations/{oid}')
+ def operation(oid:str):return operations.get(oid)
  @app.put('/api/v1/settings')
  def settings(values:dict):return service.save_settings(values)
  @app.put('/api/v1/profiles/{pid}')
@@ -50,7 +60,10 @@ def create_app(service):
  @app.post('/api/v1/credentials/session')
  def credential(values:dict):return {'credential_ref':service.set_credential(values.get('api_key'))}
  @app.post('/api/v1/provider/check')
- def provider(values:dict):return service.check_provider(values['settings'],values.get('credential_ref'),values['level'])
+ def provider(values:dict,request:Request):
+  action=lambda:service.check_provider(values['settings'],values.get('credential_ref'),values['level'])
+  op=request.headers.get('x-operation-id')
+  return JSONResponse(operations.start(op,'check',values,action),202) if op else action()
  @app.post('/api/v1/resources/register')
  def register(values:dict):return service.register_resources(values['root_path'],values.get('review_policy'))
  @app.get('/api/v1/resources/{rid}')
@@ -75,6 +88,20 @@ def create_app(service):
  def results(rid:str,view:str='summary'):return service.get_results(rid,view)
  @app.get('/api/v1/runs/{rid}/recovery')
  def recovery(rid:str):return service.recovery_status(rid)
+ @app.get('/api/v1/runs/{rid}/diagnostics')
+ def diagnostics(rid:str):
+  import json,os,stat
+  directory=service.jobs.directory(rid);path=directory/'diagnostics.json'
+  if directory.is_symlink():return {}
+  try:
+   fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+   with os.fdopen(fd,'rb') as stream:
+    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):return {}
+    raw=stream.read(16385)
+   if len(raw)>16384:return {}
+   value=json.loads(raw)
+   return {k:value[k] for k in ('diagnostic_id','time','stage','exception_type','frames') if k in value}
+  except (OSError,ValueError,TypeError):return {}
  @app.post('/api/v1/runs/{rid}/recovery')
  def reconcile(rid:str,values:dict):return service.resolve_attempt(rid,values)
  @app.get('/api/v1/runs/{rid}/reference')

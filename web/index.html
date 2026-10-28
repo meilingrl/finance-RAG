@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financial RAG · 实验工作台</title>
-<link rel="stylesheet" href="/web/styles.css?v=9">
+<link rel="stylesheet" href="/web/styles.css?v=12">
 </head>
 <body>
 <div class="stage" id="stage">
@@ -24,13 +24,14 @@
 
 <div class="meta" aria-label="当前上下文">
   <span id="connection" class="conn">连接中…</span>
-  <span><em>方案</em><b id="ctxProfile">formal-v1</b></span>
-  <span><em>资料</em><b id="ctxResource">未登记</b></span>
-  <button type="button" class="link" data-goto="experiment"><em>运行</em><b id="ctxRun">无</b></button>
+  <span><em>当前配置</em><b id="ctxProfile">formal-v1</b></span>
+  <span><em>当前资料</em><b id="ctxResource">未登记</b></span>
+  <button type="button" class="link" data-goto="experiment"><em>正在查看</em><b id="ctxRun">无</b></button>
+  <button type="button" id="copyContext" class="link">复制当前信息</button>
   <a href="/help" target="_blank" rel="noopener">说明 ↗</a>
 </div>
 
-<div id="notice" class="notice" role="status" aria-live="polite">正在连接本机服务…</div>
+<div id="notice" class="notice" role="status" aria-live="polite"><span id="noticeText">正在连接本机服务…</span><button type="button" id="dismissNotice" class="notice-close" aria-label="关闭提示">×</button></div>
 
 <main class="viewport" id="viewport">
 <div class="track" id="track">
@@ -48,13 +49,14 @@
   </header>
   <div class="body">
     <section class="block">
-      <h3><span class="mark">A</span>登记资料</h3>
+      <h3><span class="mark">A</span>实验资料</h3>
+      <p class="hint">选择当前使用的资料；正式实验准备时仍会自动核对固定主集。</p>
       <p id="dataSetupStatus" class="status-box" role="status">正在检查固定实验资料…</p>
       <button id="dataRetry" class="secondary" hidden>重新准备固定资料</button>
       <div class="actions">
-        <button id="reviewed">开发演示（12 题）</button>
+        <button id="reviewed" class="resource-choice secondary" aria-pressed="false">开发演示（12 题）</button>
         <button id="legacy" class="secondary" hidden>旧开发材料（未接入审核）</button>
-        <button id="prepared" class="secondary">固定主集（200 题）</button>
+        <button id="prepared" class="resource-choice secondary" aria-pressed="false">固定主集（200 题）</button>
         <p class="hint">开发演示包：4 份财报、12 题，含裁图、结构及本地 MiniLM。仅用于开发演示，正式实验使用独立资料。</p>
       </div>
       <details><summary>高级：其他资料目录</summary><label>或填写本地资源目录
@@ -66,29 +68,33 @@
     </section>
     <section class="block">
       <h3><span class="mark">B</span>模型接口 <span class="tag">E2–E4 / 正式实验需要</span></h3>
+      <div class="model-state-row"><span id="modelState" class="state-pill" role="status">等待连接</span><span id="modelNext" class="hint">连接后显示配置状态</span></div>
+      <div id="configError" class="inline-error" role="alert" hidden></div>
       <label>当前模型方案<select id="profiles"></select></label>
       <p id="profile" class="hint">当前方案：formal-v1 · draft</p>
       <div class="grid">
-        <label>模型服务地址<input id="endpoint" type="url" placeholder="https://服务地址（也可填写完整接口）"></label>
-        <label>主模型<input id="model" placeholder="填写渠道实际模型名称"></label>
-        <label>对照模型（完整实验使用，主集可留空）<input id="secondary" placeholder="尚未验证"></label>
-        <label>正式实验并发数（1–32）<input id="concurrency" type="number" min="1" max="32" step="1" value="4"></label>
-        <label>会话密钥<input id="key" type="password" autocomplete="off" placeholder="E1 无需密钥"></label>
+        <label>模型服务地址 <span class="required">必填</span><input id="endpoint" type="url" placeholder="https://服务地址（也可填写完整接口）" aria-describedby="endpointError"><span id="endpointError" class="field-error" hidden></span></label>
+        <label>主模型 <span class="required">必填</span><input id="model" placeholder="填写渠道实际模型名称" aria-describedby="modelError"><span id="modelError" class="field-error" hidden></span></label>
+        <label>正式实验并发数（1–32）<input id="concurrency" type="number" min="1" max="32" step="1" value="4" aria-describedby="concurrencyError"><span id="concurrencyError" class="field-error" hidden></span></label>
+        <div class="key-field"><label for="key">会话密钥 <span class="optional">E1 无需填写</span></label><div class="input-row"><input id="key" type="password" autocomplete="off" placeholder="填写 API Key" aria-describedby="keyStatus"><button id="toggleKey" type="button" class="secondary" aria-pressed="false" aria-controls="key">显示</button></div><p id="keyStatus" class="hint">尚未设置密钥；规则演示无需密钥。</p></div>
       </div>
-      <details><summary>高级：生成参数</summary><div class="grid">
+      <details id="advancedModel"><summary>高级配置 <span id="advancedSummary" class="summary-note"></span></summary><div class="grid">
+        <label>对照模型（完整实验使用，主集可留空）<input id="secondary" placeholder="主集可留空"></label>
         <label>接口协议<select id="providerApiStyle"><option value="">自动识别</option><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select></label>
-        <label>输出上限<input id="maxOutput" type="number" min="1" value="2048"></label>
-        <label>请求超时（秒）<input id="providerTimeout" type="number" min="1" value="120"></label>
+        <label>输出上限<input id="maxOutput" type="number" min="1" value="2048" aria-describedby="maxOutputError"><span id="maxOutputError" class="field-error" hidden></span></label>
+        <label>请求超时（秒）<input id="providerTimeout" type="number" min="1" value="120" aria-describedby="providerTimeoutError"><span id="providerTimeoutError" class="field-error" hidden></span></label>
         <label>推理强度（留空由服务决定）<input id="reasoningEffort" value="low"></label>
         <label>JSON 输出<select id="responseFormat"><option value="auto">自动协商</option><option value="json_schema">JSON Schema</option><option value="json_object">JSON Object</option></select></label>
         <label><input id="providerStream" type="checkbox" checked>流式响应</label>
       </div></details>
       <p class="hint">密钥仅保存在本次服务会话内；刷新页面后可继续运行，服务重启需重新填写。保存配置会显式创建自定义方案。</p>
-      <div class="actions">
+      <div class="actions model-actions">
         <button id="save">保存为自定义方案</button>
         <button id="check" class="secondary">检查模型能力与并发</button>
       </div>
       <p class="hint">单题演示固定串行。检查实际验证文本、图像及所选并发，记录调用次数；准备正式实验时也会自动完成这些检查。</p>
+      <p id="operationStatus" class="hint" role="status"></p>
+      <div class="actions"><button id="recoverOperation" class="secondary" hidden>继续查看原检查</button><button id="forgetOperation" class="secondary" hidden>结束等待（不会重新提交）</button></div>
       <p id="providerCheckStatus" class="hint" role="status"></p>
       <details><summary>接口与并发检查明细</summary><pre id="providerCheckDetails"></pre></details>
     </section>
@@ -178,13 +184,15 @@
       <h3><span class="mark">A</span>启动步骤</h3>
       <ol class="checklist">
         <li hidden><div><strong>冻结正式方案</strong><p class="hint">采用已保存的主模型与对照模型；更换配置后重新检查并冻结。</p></div><button id="freeze" class="secondary">检查冻结</button></li>
-        <li><div><strong>准备正式实验</strong><p class="hint">自动检查固定主集、模型能力与并发，并保存本次运行配置。</p></div><button id="preflight" class="secondary">准备并检查</button></li>
-        <li><div><strong>启动正式实验</strong><p class="hint">预检通过后可用；启动运行已冻结的实验范围。</p></div><button id="experiment" disabled>启动</button></li>
+        <li><div><strong>准备正式实验</strong><p class="hint">自动检查固定主集、模型能力与并发，并保存本次运行配置。</p></div><button id="preflight">准备并检查</button></li>
+        <li><div><strong>启动正式实验</strong><p class="hint">预检通过后可用；启动运行已冻结的实验范围。</p></div><button id="experiment" disabled aria-describedby="experimentHint">启动</button></li>
       </ol>
+      <p id="experimentHint" class="hint">请先完成“准备并检查”，通过后即可启动。</p>
       <div id="preflightResult" class="status-box">等待预检</div>
       <div id="preflightBlocks"></div>
       <details><summary>预检明细</summary><pre id="preflightDetails"></pre></details>
     </section>
+    <div id="formalOperation" class="recovery-callout" hidden><p id="operationStatusFormal" role="status"></p><div class="actions"><button id="recoverOperationFormal" class="secondary">继续查看原检查</button><button id="goConfig" type="button" class="link" data-goto="config">查看配置与详细状态 →</button></div><p class="hint">这里只读取原检查进度，不会重新提交模型请求。</p></div>
     <section class="block">
       <h3><span class="mark">B</span>运行监控</h3>
       <label>运行 ID<span class="input-row"><input id="runId" placeholder="运行后自动记住 ID"><button id="restore" class="secondary">加载</button></span></label>
@@ -197,7 +205,7 @@
         <button data-control="resume" class="secondary" disabled>恢复</button>
         <button data-control="cancel" class="secondary danger" disabled>取消</button>
       </div>
-      <details><summary>阶段事件与实际计数</summary><pre id="events"></pre></details>
+      <details><summary>阶段事件与实际计数（最近100条）</summary><pre id="events"></pre></details>
     </section>
   </div>
 </section>
@@ -247,7 +255,7 @@
 </div>
 </main>
 </div>
-<script src="/web/state.js?v=2" defer></script>
-<script src="/web/app.js?v=14" defer></script>
+<script src="/web/state.js?v=3" defer></script>
+<script src="/web/app.js?v=16" defer></script>
 </body>
 </html>
