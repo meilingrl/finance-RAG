@@ -40,7 +40,7 @@ a{color:var(--accent)}
 
 /* context + notice */
 .meta{position:absolute;top:18px;right:28px;z-index:4;display:flex;gap:18px;align-items:baseline;font-size:11px;color:var(--muted)}
-.meta span,.meta .link{display:inline-flex;gap:6px;align-items:baseline}
+.meta span,.meta .link{display:inline-flex;gap:6px;align-items:center;line-height:20px}
 .meta em{font-style:normal}
 .meta b{font-family:var(--mono);font-weight:500;color:var(--ink)}
 .meta a{color:var(--muted);text-decoration:none}
