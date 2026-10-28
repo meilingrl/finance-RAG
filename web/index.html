@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Financial RAG · 实验工作台</title>
-<link rel="stylesheet" href="/web/styles.css?v=9">
+<link rel="stylesheet" href="/web/styles.css?v=10">
 </head>
 <body>
 <div class="stage" id="stage">
@@ -89,6 +89,8 @@
         <button id="check" class="secondary">检查模型能力与并发</button>
       </div>
       <p class="hint">单题演示固定串行。检查实际验证文本、图像及所选并发，记录调用次数；准备正式实验时也会自动完成这些检查。</p>
+      <p id="operationStatus" class="hint" role="status"></p>
+      <div class="actions"><button id="recoverOperation" class="secondary" hidden>继续查看原检查</button><button id="forgetOperation" class="secondary" hidden>结束等待（不会重新提交）</button></div>
       <p id="providerCheckStatus" class="hint" role="status"></p>
       <details><summary>接口与并发检查明细</summary><pre id="providerCheckDetails"></pre></details>
     </section>
@@ -197,7 +199,7 @@
         <button data-control="resume" class="secondary" disabled>恢复</button>
         <button data-control="cancel" class="secondary danger" disabled>取消</button>
       </div>
-      <details><summary>阶段事件与实际计数</summary><pre id="events"></pre></details>
+      <details><summary>阶段事件与实际计数（最近100条）</summary><pre id="events"></pre></details>
     </section>
   </div>
 </section>
@@ -247,7 +249,7 @@
 </div>
 </main>
 </div>
-<script src="/web/state.js?v=2" defer></script>
-<script src="/web/app.js?v=14" defer></script>
+<script src="/web/state.js?v=3" defer></script>
+<script src="/web/app.js?v=15" defer></script>
 </body>
 </html>

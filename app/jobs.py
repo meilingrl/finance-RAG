@@ -3,6 +3,8 @@ import contextlib,fcntl,hashlib,json,os,subprocess,threading,time
 from pathlib import Path
 from datetime import datetime,timezone
 from uuid import uuid4
+from collections import OrderedDict
+from bisect import bisect_right
 from formal_src.contracts import RunSnapshot,RunEvent,uuid
 
 def now(): return datetime.now(timezone.utc).isoformat()
@@ -18,7 +20,7 @@ def atomic(path,value):
  finally:os.close(fd)
 class JobStore:
  def __init__(self,workspace):
-  self.root=Path(workspace);self.root.mkdir(parents=True,exist_ok=True);self.runs=self.root/'runs';self.runs.mkdir(exist_ok=True);self._guard=threading.RLock();self._local=threading.local()
+  self.root=Path(workspace);self.root.mkdir(parents=True,exist_ok=True);self.runs=self.root/'runs';self.runs.mkdir(exist_ok=True);self._guard=threading.RLock();self._local=threading.local();self._event_cache=OrderedDict()
  @contextlib.contextmanager
  def lock(self):
   with self._guard:
@@ -37,11 +39,36 @@ class JobStore:
    d=self.get(run_id).to_dict();d.update(values,updated_at=now());d=RunSnapshot.from_dict(d);atomic(self.directory(run_id)/'state.json',d);return d
  def events(self,run_id,after_seq=0):
   if type(after_seq)!=int or after_seq<0: raise ValueError('Invalid event cursor')
+  with self._guard:
+   cached=self._event_history(run_id)
+   return [dict(event) for event in cached['rows'][bisect_right(cached['seqs'],after_seq):]]
+ def _event_history(self,run_id):
+  # Only complete lines are committed. Cache offsets, not a new on-disk format.
   p=self.directory(run_id)/'events.jsonl'
-  return [RunEvent.from_dict(json.loads(line)) for line in p.read_text().splitlines() if line and json.loads(line)['seq']>after_seq] if p.exists() else []
+  if not p.exists():
+   self._event_cache.pop(run_id,None)
+   return {'rows':[],'seqs':[],'offset':0,'size':0}
+  with p.open('rb') as source:
+   st=os.fstat(source.fileno());identity=(st.st_dev,st.st_ino)
+   cached=self._event_cache.get(run_id)
+   if cached is None or cached['identity']!=identity or st.st_size<cached['size'] or (st.st_size==cached['size'] and st.st_mtime_ns!=cached['mtime']):
+    cached={'rows':[],'seqs':[],'offset':0,'size':0,'identity':identity}
+   source.seek(cached['offset']);chunk=source.read(st.st_size-cached['offset']);end=chunk.rfind(b'\n')+1
+   rows=[RunEvent.from_dict(json.loads(line)) for line in chunk[:end].splitlines() if line.strip()]
+   previous=cached['seqs'][-1] if cached['seqs'] else 0
+   for row in rows:
+    if row['seq']<=previous:raise ValueError('Invalid event sequence')
+    previous=row['seq']
+   cached['rows'].extend(rows);cached['seqs'].extend(row['seq'] for row in rows)
+   cached.update(offset=cached['offset']+end,size=st.st_size,mtime=st.st_mtime_ns)
+  self._event_cache[run_id]=cached;self._event_cache.move_to_end(run_id)
+  while len(self._event_cache)>4:self._event_cache.popitem(last=False)
+  return cached
  def emit(self,run_id,event):
   with self.lock():
-   s=self.get(run_id);existing=self.events(run_id);e=RunEvent.from_dict(dict(schema_version=1,run_id=run_id,seq=(existing[-1]['seq'] if existing else 0)+1,time=now(),phase=event.get('phase',s['phase']),event_type=event['event_type'],counts=event.get('counts',{}),error_code=event.get('error_code')))
+   s=self.get(run_id);history=self._event_history(run_id)
+   if history['offset']!=history['size']:raise ValueError('Incomplete event journal')
+   e=RunEvent.from_dict(dict(schema_version=1,run_id=run_id,seq=(history['seqs'][-1] if history['seqs'] else 0)+1,time=now(),phase=event.get('phase',s['phase']),event_type=event['event_type'],counts=event.get('counts',{}),error_code=event.get('error_code')))
    with (self.directory(run_id)/'events.jsonl').open('a') as f: f.write(json.dumps(e)+'\n');f.flush();os.fsync(f.fileno())
    counts={k:v for k,v in e['counts'].items() if k in s};self.update(run_id,last_event_seq=e['seq'],phase=e['phase'],**counts)
  def register(self,request,spec,blocking):
@@ -80,7 +107,9 @@ class JobStore:
    consumed=len(self.events(run_id))
    try:
     process=subprocess.Popen(list(command)+['--run-dir',str(directory)],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
-   except OSError:
+   except OSError as exc:
+    from formal_src.diagnostics import record_failure
+    record_failure(directory,exc,'worker_start')
     return self.update(run_id,state='blocked',blocking_items=['kernel_start_failed'])
    atomic(directory/'process.json',{'pid':process.pid,'started_at':now(),'fingerprint':self._fingerprint(process.pid)})
    self.update(run_id,state='running',available_actions=['pause','cancel'],blocking_items=[])
@@ -114,7 +143,9 @@ class JobStore:
      checks['outputs']={name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ('predictions.jsonl','tasks.jsonl','retrieval.jsonl','summary.json','results.csv','attempts.jsonl','inputs.json') if (directory/name).is_file()}
      atomic(directory/'integrity.json',checks)
      self.update(run_id,state=state,available_actions=['resume','inspect'] if state in ('paused','interrupted','blocked','failed') else ['inspect'],blocking_items=result.get('blocking_items',[]))
-    except Exception:
+    except Exception as exc:
+     from formal_src.diagnostics import record_failure
+     record_failure(directory,exc,'worker_monitor')
      self.update(run_id,state='failed',blocking_items=['invalid_worker_output'])
   threading.Thread(target=monitor,daemon=True).start()
  @staticmethod

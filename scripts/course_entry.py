@@ -8,6 +8,13 @@ import sys
 import time
 from uuid import uuid4
 
+if __name__ == '__main__':
+    try:
+        import fcntl
+    except ImportError:
+        print('当前运行器需要 Unix 文件锁（fcntl）。原生 Windows 不受支持；请在 macOS、Linux 或 WSL 中安装 Python 3.12 后运行。',file=sys.stderr)
+        raise SystemExit(2)
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:] = [str(ROOT)] + [entry for entry in sys.path if entry != str(ROOT)]
 from app.api import create_app

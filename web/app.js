@@ -2,8 +2,10 @@
 const $=id=>document.getElementById(id), pretty=x=>JSON.stringify(x,null,2);
 const store={get(k){try{return localStorage.getItem(k);}catch{return null;}},set(k,v){try{localStorage.setItem(k,v);}catch{}}};
 let session='',credential=null,profiles=[],profile=store.get('rag-profile')||'formal-v1',resource=store.get('rag-resource')||'',run=store.get('rag-run')||'',examples=[],timer=null,answers=[];
-let savedState=null,restoring=true,referenceQuestion='';
+let savedState=null,restoring=true,referenceQuestion='',operationClient=null,operationsSupported=false;
 let fixedDataStatus=null,preparedExperiment=null,pendingExperimentPreparation=false;
+let dataTimer=null,dataFailures=0,dataRefreshing=false;
+let eventRun='',eventCursor=0,eventHistory=[];
 let syntheticOutput=false,answerPage=0,runKind='';
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!==null&&c!==undefined));return node;};
 const short=id=>id?(id.length>14?id.slice(0,8)+'…':id):'';
@@ -133,11 +135,16 @@ function renderBlocks(id,items,title='还需完成'){
 }
 
 // ---------- API ----------
-async function api(path,body,method='POST') {
- const response=await fetch('/api/v1/'+path,{method:body===undefined?'GET':method,...(body===undefined?{signal:AbortSignal.timeout(15000)}:{}),headers:{'Content-Type':'application/json','X-Session-ID':session},...(body===undefined?{}:{body:JSON.stringify(body)})});
- let data={};try{data=await response.json();}catch{}
- if(data.code==='invalid_session'){credential=null;throw Error('服务已重启，请刷新页面恢复配置；密钥需重新填写。');}
- if(!response.ok)throw Error(data.detail||data.message||data.code||'请求未完成（'+response.status+'）');return data;
+async function api(path,body,method='POST',extraHeaders={}) {
+ const controller=new AbortController();
+ // Old running servers retain their synchronous POST behavior until restarted.
+ const timeout=body===undefined||extraHeaders['X-Operation-ID']?setTimeout(()=>controller.abort(),15000):null;
+ try{
+  const response=await fetch('/api/v1/'+path,{method:body===undefined?'GET':method,signal:controller.signal,headers:{'Content-Type':'application/json','X-Session-ID':session,...extraHeaders},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  let data={};try{data=await response.json();}catch{}
+  if(data.code==='invalid_session'){credential=null;throw Object.assign(Error('服务已重启，请刷新页面恢复配置；密钥需重新填写。'),{status:403});}
+  if(!response.ok)throw Object.assign(Error(data.detail||data.message||data.code||'请求未完成（'+response.status+'）'),{status:response.status});return data;
+ }finally{clearTimeout(timeout);}
 }
 function bind(id,fn){$(id).onclick=async()=>{const button=$(id);button.disabled=true;try{await fn();}catch(e){notice(String(e.message),'error');}finally{button.disabled=false;if(id==='experiment')button.disabled=!experimentReady;}};}
 function request(kind,canonical=false){
@@ -184,6 +191,7 @@ bind('prepared',async()=>{if(!fixedDataStatus?.ready)throw Error('固定资料�
 bind('prepare',()=>start(request('prepare'),'prepareBlocks'));
 bind('importReviews',async()=>{if(!resource)throw Error('请先登记对应资源');const report=await api('resources/'+resource+'/reviews',JSON.parse($('reviewManifest').value));resourceSummary(report);notice('已校验并导入审核记录。记录与资源 SHA 绑定，其他门槛仍单独检查。','ok');});
 async function saveModel(){
+ if(operationClient?.pending())throw Error('上次检查结果尚未确认，请先继续查看原检查。');
  experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;
  const endpoint=$('endpoint').value.trim(),model=$('model').value.trim();if(!endpoint||!model)throw Error('请填写实际接口完整地址和主模型名称');
  const concurrency=Number($('concurrency').value);if(!Number.isInteger(concurrency)||concurrency<1||concurrency>32)throw Error('正式实验并发数应为 1–32 的整数');
@@ -198,18 +206,41 @@ async function saveModel(){
  await refreshProfiles();fillProfile();return adopted;
 }
 bind('save',async()=>{await saveModel();notice('模型方案已保存；单题串行，正式实验使用配置的并发数。','ok');});
+const modelControls=['save','check','preflight','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
+function lockModel(locked){for(const id of modelControls)$(id).disabled=locked;}
+function operationStatus(message,missing=false){
+ $('operationStatus').textContent=message;$('recoverOperation').hidden=!operationClient?.pending();$('forgetOperation').hidden=!missing;
+}
+async function applyCheckReport(report){
+ const count=report.parallel.concurrency;
+ const text=`文本${report.single.ready?'通过':'未通过'}；图像${report.vision?.ready?'通过':'未通过'}；${count} 路并发 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
+ if(report.ready&&report.effective_provider){await api('profiles/'+profile,{provider:report.effective_provider},'PUT');await refreshProfiles();fillProfile();}
+ $('providerCheckStatus').textContent=text;$('providerCheckDetails').textContent=pretty(report);
+ notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
+}
+async function applyOperation(outcome){
+ if(!outcome)return;
+ profile=outcome.profile;store.set('rag-profile',profile);savedState?.set('profile',profile);
+ if(outcome.kind==='prepare'&&outcome.result.state==='preparing_data')operationClient.acknowledge(outcome.id);
+ if(outcome.kind==='check')await applyCheckReport(outcome.result);else await applyPreparation(outcome.result);
+ operationClient.acknowledge(outcome.id);operationStatus('检查已完成。');
+}
+async function recoverOperation(){
+ lockModel(true);
+ try{await applyOperation(await operationClient.recover());}
+ finally{lockModel(false);$('recoverOperation').hidden=!operationClient.pending();}
+}
+bind('recoverOperation',recoverOperation);
+bind('forgetOperation',()=>{operationClient.forget();operationStatus('已结束等待；没有重新提交或取消后台任务。');});
 bind('check',async()=>{
- const adopted=await saveModel(),count=adopted.concurrency;
- const controls=['save','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
- for(const id of controls)$(id).disabled=true;
- $('providerCheckStatus').textContent=`检查中：先测单请求，再测 ${count} 路并发…`;
+ lockModel(true);
  try{
-  const report=await api('provider/check',{settings:{...adopted.provider,model:adopted.models.primary,concurrency:count,require_vision:true},credential_ref:credential,level:'compatibility'});
-  const text=`文本${report.single.ready?'通过':'未通过'}；图像${report.vision?.ready?'通过':'未通过'}；${count} 路并发 ${report.parallel.success_count}/${count} 成功；实际调用 ${report.sent_attempts} 次。`;
-  if(report.ready&&report.effective_provider){await api('profiles/'+profile,{provider:report.effective_provider},'PUT');await refreshProfiles();fillProfile();}
-  $('providerCheckStatus').textContent=text; $('providerCheckDetails').textContent=pretty(report);
-  notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
- }finally{for(const id of controls)$(id).disabled=false;}
+  const adopted=await saveModel(),count=adopted.concurrency;
+  $('providerCheckStatus').textContent=`检查中：先测单请求，再测 ${count} 路并发…`;
+  const values={settings:{...adopted.provider,model:adopted.models.primary,concurrency:count,require_vision:true},credential_ref:credential,level:'compatibility'};
+  if(operationsSupported)await applyOperation(await operationClient.start('check','provider/check',values,profile));
+  else await applyCheckReport(await api('provider/check',values));
+ }finally{lockModel(false);$('recoverOperation').hidden=!operationClient?.pending();}
 });
 for(const id of ['endpoint','model','secondary','concurrency','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'])$(id).addEventListener('input',()=>{experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
 
@@ -236,17 +267,20 @@ async function start(q,blocksId){
 }
 bind('demo',async()=>{$('demoStatus').textContent='预检中…';try{await start(request('demo'),'demoBlocks');}catch(e){$('demoStatus').textContent='';throw e;}});
 async function prepareExperiment(){
- const controls=['save','check','endpoint','model','secondary','concurrency','profiles','key','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'];
- for(const id of controls)$(id).disabled=true;
+ lockModel(true);
  try{
- await saveModel();
- box('preflightResult','正在检查固定资料、模型文本与图像能力及并发，并冻结本次配置…','run');
- $('preflightBlocks').replaceChildren();
- let p=await api('experiments/prepare',{model_profile_id:profile,credential_ref:credential});
+  await saveModel();
+  box('preflightResult','正在检查固定资料、模型文本与图像能力及并发，并冻结本次配置…','run');
+  $('preflightBlocks').replaceChildren();
+  const values={model_profile_id:profile,credential_ref:credential};
+  if(operationsSupported)await applyOperation(await operationClient.start('prepare','experiments/prepare',values,profile));
+  else await applyPreparation(await api('experiments/prepare',values));
+ }finally{lockModel(false);$('recoverOperation').hidden=!operationClient?.pending();}
+}
+async function applyPreparation(p){
  if(p.state==='preparing_data'){
   pendingExperimentPreparation=true;await refreshFixedData();
-  notice('固定资料正在自动准备，下载完成后会继续检查。');
-  return;
+  notice('固定资料正在自动准备，下载完成后会继续检查。');return;
  }
  if(p.resource_set_id){resource=p.resource_set_id;store.set('rag-resource',resource);savedState?.set('resource',resource);}
  if(p.model_profile_id){profile=p.model_profile_id;store.set('rag-profile',profile);savedState?.set('profile',profile);}
@@ -254,7 +288,6 @@ async function prepareExperiment(){
  experimentReady=p.ready;preparedExperiment=p.ready?p.request:null;$('experiment').disabled=!p.ready;
  stepStatus('experiment',p.ready?'准备完成，可启动':reasonNames[p.blocking_items?.[0]]||'准备未完成',p.ready?'ok':'warn');
  notice(p.ready?'正式实验已准备完成。':joinReasons((p.blocking_items||[]).slice(0,2)),p.ready?'ok':'warn');
- }finally{for(const id of controls)$(id).disabled=false;}
 }
 bind('preflight',prepareExperiment);
 bind('experiment',()=>{if(!preparedExperiment)throw Error('请先准备正式实验。');return start({...preparedExperiment,client_request_id:crypto.randomUUID()});});
@@ -294,6 +327,11 @@ function renderActivity(state,events){
 async function renderRecovery(state,id){
  const panel=$('recoveryPanel');panel.hidden=true;panel.replaceChildren();
  if(!['blocked','interrupted','failed','paused'].includes(state.state))return;
+ if(operationsSupported){
+  try{const diagnostic=await api('runs/'+id+'/diagnostics');if(run!==id)return;
+   if(diagnostic.diagnostic_id){panel.hidden=false;panel.append(el('h3',{textContent:'运行诊断'}),el('p',{textContent:'诊断编号：'+diagnostic.diagnostic_id}),el('p',{className:'hint',textContent:'本地记录：当前运行目录下的 diagnostics.json；仅含异常类型与代码位置。'}),el('pre',{textContent:pretty(diagnostic)}));}
+  }catch{/* Diagnostics never block the existing recovery controls. */}
+ }
  const report=await api('runs/'+id+'/recovery');if(run!==id)return;
  if(!report.items.length)return;panel.hidden=false;
  panel.append(el('h3',{textContent:'中断恢复'}),el('p',{className:'hint',textContent:'已有响应会在恢复时自动取回。无法确认的调用不会自动重发；记为失败会影响实验指标，调用记录仍保留。'}));
@@ -311,7 +349,7 @@ async function renderRecovery(state,id){
   panel.append(section);
  }
 }
-async function refresh(){if(!run)return;clearTimeout(timer);const observedRun=run;const state=await api('runs/'+observedRun);if(run!==observedRun)return;runKind=state.kind;renderRunState(state);document.querySelectorAll('[data-control]').forEach(b=>{b.disabled=!state.available_actions.includes(b.dataset.control);});const events=await api('runs/'+observedRun+'/events');if(run!==observedRun)return;$('events').textContent=pretty(events);renderActivity(state,events);await renderRecovery(state,observedRun);if(run!==observedRun)return;if(state.state==='completed')await results();else if(ACTIVE.includes(state.state))timer=setTimeout(pollRun,1200);}
+async function refresh(){if(!run)return;clearTimeout(timer);const observedRun=run;const state=await api('runs/'+observedRun);if(run!==observedRun)return;runKind=state.kind;renderRunState(state);document.querySelectorAll('[data-control]').forEach(b=>{b.disabled=!state.available_actions.includes(b.dataset.control);});if(eventRun!==observedRun){eventRun=observedRun;eventCursor=0;eventHistory=[];}const events=await api('runs/'+observedRun+'/events?after_seq='+eventCursor);if(run!==observedRun)return;for(const e of events){if(e.seq>eventCursor){eventHistory.push(e);eventCursor=e.seq;}}$('events').textContent=pretty(eventHistory.slice(-100));renderActivity(state,eventHistory);await renderRecovery(state,observedRun);if(run!==observedRun)return;if(state.state==='completed')await results();else if(ACTIVE.includes(state.state))timer=setTimeout(pollRun,1200);}
 async function pollRun(){try{await refresh();$('connection').textContent='本机服务已连接';}catch(e){$('connection').textContent='连接中断 · 正在重连';notice('暂时无法读取进度，正在重连；不会重新提交实验。','warn');timer=setTimeout(pollRun,3000);}}
 bind('recoverSubmission',async()=>{
  const id=savedState?.get('pendingRequest');if(!id)return;
@@ -391,25 +429,40 @@ bind('verify',needRun(async()=>{const origin=await api('runs/'+run+'/origin'),q=
 bind('export',needRun(async()=>{const result=await api('runs/'+run+'/export',{});renderBlocks('resultsBlocks',result.exported?[]:[...result.blocking_items,...(result.missing||[]).map(m=>'缺少 '+m)],'尚不能导出');notice(result.exported?'课程专用包已生成：'+result.archive:'尚不能导出：'+joinReasons(result.blocking_items)+(result.missing?'；缺少 '+result.missing.join('、'):''),result.exported?'ok':'warn');}));
 
 async function refreshFixedData(){
- const d=await api('data/status');fixedDataStatus=d;
- const downloaded=d.downloaded_bytes,total=d.total_bytes;
- $('dataSetupStatus').textContent=d.ready?'固定主集与开发资料已校验，可直接使用。':['failed','invalid','configuration_error','conflict'].includes(d.state)?(d.message||'资料下载未完成，请重试。'):downloaded?`正在下载固定资料：${(downloaded/1048576).toFixed(1)}${total?' / '+(total/1048576).toFixed(1):''} MiB`:'正在自动校验并准备固定实验资料…';
- $('dataRetry').hidden=!['failed','invalid','configuration_error','conflict'].includes(d.state);$('reviewed').disabled=!d.ready;$('prepared').disabled=!d.ready;
- if(d.ready&&(!resource||['formal-v1','formal-v1-course'].includes(resource))){await register(d.formal_root);}
- if(d.ready&&pendingExperimentPreparation){pendingExperimentPreparation=false;await prepareExperiment();}
- if(!d.ready&&!['failed','invalid','configuration_error','conflict'].includes(d.state)){
-  if(d.state==='not_started')await api('data/prepare',{});
-  setTimeout(()=>refreshFixedData().catch(e=>{$('dataSetupStatus').textContent=e.message;}),1500);
- }
- return d;
+ if(dataRefreshing)return fixedDataStatus;
+ dataRefreshing=true;clearTimeout(dataTimer);
+ try{
+  const d=await api('data/status');fixedDataStatus=d;dataFailures=0;
+  const downloaded=d.downloaded_bytes,total=d.total_bytes;
+  const stopped=['failed','invalid','configuration_error','conflict'].includes(d.state);
+  $('dataSetupStatus').textContent=d.ready?'固定主集与开发资料已校验，可直接使用。':stopped?(d.message||'资料准备未完成，请查看应用指南。'):downloaded?`正在下载固定资料：${(downloaded/1048576).toFixed(1)}${total?' / '+(total/1048576).toFixed(1):''} MiB`:'正在自动校验并准备固定实验资料…';
+  $('dataRetry').hidden=d.ready;
+  $('dataRetry').textContent=stopped?'重新检查并准备资料':'刷新资料状态';
+  $('reviewed').disabled=!d.ready;$('prepared').disabled=!d.ready;
+  if(d.ready&&(!resource||['formal-v1','formal-v1-course'].includes(resource)))await register(d.formal_root);
+  if(d.ready&&pendingExperimentPreparation){pendingExperimentPreparation=false;await prepareExperiment();}
+  if(!d.ready&&!stopped){
+   if(d.state==='not_started')await api('data/prepare',{});
+   dataTimer=setTimeout(refreshFixedData,1500);
+  }
+  return d;
+ }catch(e){
+  $('dataSetupStatus').textContent='暂时无法读取资料状态，正在自动重连；可手动刷新。'+e.message;
+  $('dataRetry').hidden=false;$('dataRetry').textContent='刷新资料状态';
+  $('reviewed').disabled=!fixedDataStatus?.ready;$('prepared').disabled=!fixedDataStatus?.ready;
+  dataFailures+=1;dataTimer=setTimeout(refreshFixedData,Math.min(15000,1500*2**Math.min(dataFailures,4)));
+  return null;
+ }finally{dataRefreshing=false;}
 }
-bind('dataRetry',async()=>{await api('data/prepare',{});await refreshFixedData();});
+bind('dataRetry',async()=>{if(['failed','invalid','configuration_error','conflict'].includes(fixedDataStatus?.state))await api('data/prepare',{});await refreshFixedData();});
 
 // ---------- start ----------
 (async()=>{try{
  const caps=await refreshProfiles();session=caps.session_id;
  const storage=name=>{try{return window[name];}catch{return null;}};
  savedState=RagState.createState(storage('localStorage'),storage('sessionStorage'),caps.workspace);
+ operationsSupported=caps.background_checks===true;
+ operationClient=RagState.createOperations(api,savedState,session,operationStatus);
  const legacyWorkspace=store.get('rag-migration-workspace');const migrate=!legacyWorkspace||legacyWorkspace===caps.workspace;
  if(!legacyWorkspace)store.set('rag-migration-workspace',caps.workspace);
  profile=savedState.get('profile')||(migrate?profile:'formal-v1');resource=savedState.get('resource')??(migrate?resource:'');run=savedState.get('run')??(migrate?run:'');
@@ -426,5 +479,6 @@ bind('dataRetry',async()=>{await api('data/prepare',{});await refreshFixedData()
  if(pending){$('recoverSubmission').hidden=false;try{const found=await api('runs?client_request_id='+encodeURIComponent(pending));if(found.run_id){run=found.run_id;savedState.set('run',run);savedState.set('pendingRequest',null);savedState.set('pendingPayload',null);$('recoverSubmission').hidden=true;}else notice('上次提交尚未确认，请先检查运行记录，不要重复启动。','warn');}catch{notice('上次提交状态待确认，请恢复连接后刷新。','warn');}}
  if(!run){try{const history=await api('runs');const recent=history.runs.find(r=>ACTIVE.includes(r.state))||history.runs[0];if(recent){run=recent.run_id;savedState.set('run',run);}}catch{}}
  restoring=false;
+ if(operationClient.pending())recoverOperation().catch(e=>notice(e.message,'warn'));
  if(run){$('runId').value=run;try{await refresh();}catch(e){notice('暂时无法恢复运行进度，正在重连。','warn');timer=setTimeout(pollRun,3000);}}
 }catch(e){$('connection').textContent='未连接';$('connection').className='conn err';notice(e.message,'error');}})();
