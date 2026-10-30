@@ -4,6 +4,11 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from app import fsutil
 if __name__=='__main__':
+ def failure(kind,error,trace):
+  import traceback
+  directory=Path(sys.argv[sys.argv.index('--run-dir')+1])
+  (directory/'fixture-error.txt').write_text(''.join(traceback.format_exception(kind,error,trace)),encoding='utf-8')
+ sys.excepthook=failure
  root=Path(sys.argv[sys.argv.index('--run-dir')+1]);inputs=json.loads((root/'inputs.json').read_text());assert inputs['schema_version']==1 and isinstance(inputs['resources'],list);spec=json.loads((root/'spec.json').read_text());mode=spec['resolved_config'].get('worker_scenario','complete')
  def event(name,**counts):
   with (root/'worker-events.jsonl').open('a') as f:f.write(json.dumps(dict(event_type=name,phase='prepare',counts=counts,error_code=None))+'\n')

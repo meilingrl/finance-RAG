@@ -5,6 +5,14 @@ from fastapi.testclient import TestClient
 from app.service import ApplicationService
 from app.api import create_app
 
+def worker_failure(service,rid):
+ directory=service.jobs.directory(rid)
+ details={'state':dict(service.get_run(rid))}
+ for name in ('fixture-error.txt','diagnostics.json','worker-result.json'):
+  path=directory/name
+  if path.exists():details[name]=path.read_text(encoding='utf-8')
+ return str(details)
+
 def request(rid='demo',kind='prepare'):
  return dict(schema_version=1,client_request_id=str(uuid4()),kind=kind,profile_id='formal-v1',resource_set_id=rid,source_run_id=None,demo_input=None)
 def setup(root):
@@ -27,7 +35,7 @@ class ServiceTests(unittest.TestCase):
     r=s.get_run(rid)
     if r['state']=='paused':break
     time.sleep(.02)
-   self.assertEqual(r['state'],'paused');self.assertEqual(r['in_flight_count'],0)
+   self.assertEqual(r['state'],'paused',worker_failure(s,rid));self.assertEqual(r['in_flight_count'],0)
    e=s.list_events(rid);self.assertEqual([x['seq'] for x in e],[1,2]);self.assertEqual(len(s.list_events(rid,1)),1)
  def test_http_local_session(self):
   with tempfile.TemporaryDirectory() as td:
@@ -101,7 +109,7 @@ class ResumeIntegrityTests(unittest.TestCase):
    result=s.get_run(rid)
    if result['state'] in states:return result
    time.sleep(.01)
-  self.fail('worker did not reach expected state')
+  self.fail('worker did not reach expected state: '+worker_failure(s,rid))
  def test_resume_rechecks_budget_and_profile_readiness(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);s=setup(root);(root/'w/budget.jsonl').write_text('broken\n');rid=s.start_run(request())['run_id']
