@@ -22,6 +22,8 @@ python3.12 -m venv .venv
 
 单题演示始终串行。服务重启后需要重新填写会话密钥；密钥不包含在资源包中。离线安装、平台依赖和详细操作见[应用指南](docs/guides/APP_GUIDE.md)。已加入原生 Windows 文件锁、UTF-8 与进程恢复兼容；Windows PowerShell 安装命令及验证边界见应用指南。
 
+当前开发分支统一为 `main`；旧分支记录通过带注释的归档 tag 保留，见[分支归档说明](docs/history/BRANCH_ARCHIVE_20261030.md)。
+
 ## 目录与阅读入口
 
 | 入口 | 用途 |

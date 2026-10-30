@@ -147,3 +147,17 @@ node --test tests/web/*.cjs
 ### 合并后测试同步修正（2026-10-30）
 
 `2f4e352` 的 [main CI](https://github.com/meilingrl/finance-RAG/actions/runs/41061745291) 捕获到凭据测试自身的退出同步竞态：它看到 completed 状态后立即遍历文件，而 monitor 线程仍在释放 Windows 强制字节锁。测试改为捕获并等待真实 monitor 线程退出，再验证实际 worker argv、环境与全部磁盘文件；未跳过锁文件、未放宽密钥泄漏断言，生产代码不变。本地相关29项通过（4.573秒）；CI 将凭据检查也加入10轮重复验证，形成每平台69项回归加30项重复测试，结果以该修复提交的检查为准。`/tmp/finance-windows-shutdown-local.log` 为已结束的测试记录。
+
+
+### 新版实际启动与收尾复测（2026-10-30）
+
+- 在 `rag-pilot.worktrees/windows-integration` 的 main `f732e33501181a2f1e7d9b211fdf27cf6227037e` 实际启动服务，地址 `http://127.0.0.1:8788`，PID `25601`；独立工作区 `artifacts/windows-runtime-check/workspace/` 与 `server.log` 当前使用中。保留给用户继续查看，未重启或替换旧实例。
+- 使用 APFS 克隆建立独立 `data/fixed-course-v1/` 副本，校验返回 ready；资料副本当前使用中，源资料未修改。通过真实浏览器运行 BM25＋E1 与 MiniLM＋E1，两次均 completed、回答为1.2、外部模型调用为0；刷新后恢复已完成状态与答案。未评价准确率，未执行正式模型实验。
+- 首页、帮助、脚本、能力和资料状态接口均 HTTP 200；浏览器未记录错误/警告。当前 main 全量 Python：484项，482通过、2跳过（可选pypdf）、0失败，259.769秒；前端19项全部通过。固定资料已安装，本次真实资料准备回归不再跳过。
+- 证据：[运行与测试摘要](../../artifacts/windows-runtime-check/runtime-evidence.json)、[浏览器完成截图](../../artifacts/windows-runtime-check/demo-completed.png)。同目录 `python-tests.log`、`frontend-tests.log`、`data-check.json` 为已结束的验收记录；不属于正式实验成绩。
+- 已核对 PR #2、#3 均合并，无待合并 PR；main 与 origin/main 一致且代码工作树干净。本轮无需重复合并或新增业务提交。原 checkout 的既有修改和历史资产保留，工作区保留用于当前验收服务。
+
+
+### 分支收尾（2026-10-30，用户确认实跑通过后）
+
+所有分支末端均已包含在 main 历史中，本地/远端仅保留 main。5个来源分支已通过带注释归档 tag 保存，原始代码及合并历史未丢失；详见[分支归档与工作区说明](../history/BRANCH_ARCHIVE_20261030.md)。本轮仅修改文档和 Git 引用，生产代码、测试及实验内容不变，沿用上方已通过的实跑和回归证据。旧两个 checkout 转为 detached HEAD 并保持原文件内容，8788 服务及其独立资料/工作区继续使用中。
