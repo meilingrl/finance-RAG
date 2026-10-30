@@ -127,6 +127,16 @@ def sync_directory(path):
         os.close(fd)
 
 
+def _sharing_error(error):
+    if os.name != 'nt':
+        return False
+    code = getattr(error, 'winerror', None)
+    # CPython's CRT-backed open() can discard winerror and expose only EACCES.
+    # It cannot distinguish a sharing violation from a permanent access denial;
+    # both are bounded by the same retry limit.
+    return code in (5, 32, 33) or (code is None and error.errno == errno.EACCES)
+
+
 def replace(source, destination, *, attempts=_REPLACE_ATTEMPTS):
     """Rename ``source`` over ``destination``, tolerating a transient sharing error.
 
@@ -143,7 +153,7 @@ def replace(source, destination, *, attempts=_REPLACE_ATTEMPTS):
             os.replace(source, destination)
             return
         except PermissionError as error:
-            if os.name != 'nt' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt + 1 >= attempts:
+            if not _sharing_error(error) or attempt + 1 >= attempts:
                 raise
             time.sleep(min(_REPLACE_BACKOFF * (attempt + 1), _REPLACE_MAX_BACKOFF))
 
@@ -161,6 +171,6 @@ def read_text(path, *, attempts=_REPLACE_ATTEMPTS):
         try:
             return path.read_text(encoding='utf-8')
         except PermissionError as error:
-            if os.name != 'nt' or getattr(error, 'winerror', None) not in (5, 32, 33) or attempt + 1 >= attempts:
+            if not _sharing_error(error) or attempt + 1 >= attempts:
                 raise
             time.sleep(min(_REPLACE_BACKOFF * (attempt + 1), _REPLACE_MAX_BACKOFF))

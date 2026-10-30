@@ -46,7 +46,7 @@ class JobsTest(unittest.TestCase):
    s.jobs.update(rid,state='running',in_flight_count=1)
    atomic(directory/'process.json',{'pid':None})
    (directory/'worker-events.jsonl').write_text(json.dumps({'event_type':'finished','counts':{'in_flight_count':0}})+'\n')
-   (directory/'predictions.jsonl').write_text('synthetic-result\n')
+   (directory/'predictions.jsonl').write_bytes(b'synthetic-result\n')
    atomic(directory/'worker-result.json',{'state':'completed'})
    reopened=ApplicationService(root,root/'w')
    deadline=time.monotonic()+2

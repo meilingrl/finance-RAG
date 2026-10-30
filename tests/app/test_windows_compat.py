@@ -80,6 +80,29 @@ for i in range(8): append(sys.argv[1], {'worker':sys.argv[2], 'item':i})
                 fsutil.replace(src, dst)
             self.assertEqual(dst.read_bytes(), b'new')
 
+    def test_windows_crt_read_error_without_winerror_is_retried(self):
+        from app import fsutil
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td)/'state.json'; path.write_text('中文', encoding='utf-8')
+            original = type(path).read_text
+            calls = []
+            def reading(target, **kwargs):
+                calls.append(1)
+                if len(calls) == 1: raise PermissionError(errno.EACCES, 'CRT sharing error')
+                return original(target, **kwargs)
+            with patch.object(fsutil.os, 'name', 'nt'), patch.object(type(path), 'read_text', reading):
+                self.assertEqual(fsutil.read_text(path), '中文')
+
+    def test_windows_persistent_permission_error_is_bounded(self):
+        from app import fsutil
+        calls = []
+        def denied(*args):
+            calls.append(1)
+            raise PermissionError(errno.EACCES, 'denied')
+        with patch.object(fsutil.os, 'name', 'nt'), patch.object(fsutil.os, 'replace', denied):
+            with self.assertRaises(PermissionError): fsutil.replace('a', 'b', attempts=3)
+        self.assertEqual(len(calls), 3)
+
     def test_posix_permission_failure_is_not_retried(self):
         from app import fsutil
         calls = []
