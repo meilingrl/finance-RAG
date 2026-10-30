@@ -3,8 +3,9 @@
 Qualified multimodal resource adapters are intentionally gated, never inferred
 from legacy page coordinates. Evaluation is a separate post-seal operation.
 """
-import json,os,time,hashlib,fcntl
+import json,os,time,hashlib
 from pathlib import Path
+from app import fsutil
 from .contracts import ResolvedRunSpec,AnswerRecord,RunResults,safe_json
 from .provider import build_payload,generate,digest,ProviderError,APIError,validate_config
 from .budget import Budget,BudgetError,append,latest
@@ -23,14 +24,12 @@ def fatal_provider_failure(code):
 
 def atomic(path,value):
  path=Path(path);tmp=path.with_name(path.name+'.tmp')
- with tmp.open('w') as f:json.dump(value,f,sort_keys=True,allow_nan=False);f.flush();os.fsync(f.fileno())
- os.replace(tmp,path)
- fd=os.open(str(path.parent),os.O_RDONLY)
- try:os.fsync(fd)
- finally:os.close(fd)
+ with tmp.open('w',encoding='utf-8') as f:json.dump(value,f,sort_keys=True,allow_nan=False);f.flush();os.fsync(f.fileno())
+ fsutil.replace(tmp,path)
+ fsutil.sync_directory(path.parent)
 
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-def rows(path):return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+def rows(path):return [json.loads(line) for line in Path(path).read_text(encoding='utf-8').splitlines() if line.strip()]
 
 def load_inputs(run_dir):
  projection=json.loads((run_dir/'inputs.json').read_text());root=Path(projection['root']).resolve();loaded={}
@@ -109,13 +108,13 @@ def run(spec,emit,control,transport=None,*,run_dir=None):
  if binding is None or not Path(binding).is_absolute():raise RunnerBlocked('absolute_run_directory_required')
  rd=Path(binding).resolve();rd.mkdir(parents=True,exist_ok=True)
  with (rd/'worker.lock').open('a+') as ownership:
-  try:fcntl.flock(ownership,fcntl.LOCK_EX|fcntl.LOCK_NB)
+  try:fsutil.acquire(ownership,blocking=False)
   except BlockingIOError:return {'state':'blocked','blocking_items':['run_already_running']}
   try:
    return _run_owned(spec,emit,control,transport,rd)
   except Exception:
    value={'state':'failed','blocking_items':['worker_initialization_failed']};atomic(rd/'worker-result.json',value);return value
-  finally:fcntl.flock(ownership,fcntl.LOCK_UN)
+  finally:fsutil.release(ownership)
 
 
 def input_package(rd):
@@ -135,7 +134,7 @@ def input_projection(projection):
    for record in data[p.name]:safe_json(record)
   elif p.name in {'cohorts.json','scope_reviews.json'}:
    if p.name in data:raise RunnerBlocked('duplicate_input_role')
-   data[p.name]=json.loads(p.read_text());safe_json(data[p.name])
+   data[p.name]=json.loads(p.read_text(encoding='utf-8'));safe_json(data[p.name])
   if p.name in {'scope_reviews.json','approved_structures.jsonl'} and b['kind']!='approved_description':raise RunnerBlocked('unapproved_description_binding')
  if not all(k in data for k in ('inference_questions.jsonl','evidence_units.jsonl')):raise RunnerBlocked('inference_inputs_missing')
  return data,bindings

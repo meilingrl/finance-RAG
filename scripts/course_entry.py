@@ -8,6 +8,13 @@ import sys
 import time
 from uuid import uuid4
 
+# Windows defaults text I/O to the ANSI code page (cp936 on Chinese installs), which
+# cannot decode the UTF-8 datasets. Re-exec once in UTF-8 mode so every open() and
+# read_text() in this process, its worker subprocess and the HTTP service agree.
+if not sys.flags.utf8_mode and os.environ.get('PYTHONUTF8') != '1':
+    os.environ['PYTHONUTF8'] = '1'
+    os.execv(sys.executable, [sys.executable, *sys.argv])
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:] = [str(ROOT)] + [entry for entry in sys.path if entry != str(ROOT)]
 from app.api import create_app

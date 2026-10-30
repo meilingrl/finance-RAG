@@ -51,6 +51,8 @@ def create_app(service):
  def credential(values:dict):return {'credential_ref':service.set_credential(values.get('api_key'))}
  @app.post('/api/v1/provider/check')
  def provider(values:dict):return service.check_provider(values['settings'],values.get('credential_ref'),values['level'])
+ @app.get('/api/v1/model-catalog')
+ def model_catalog(endpoint:str='',credential_ref:str=''):return service.available_models(endpoint,credential_ref)
  @app.post('/api/v1/resources/register')
  def register(values:dict):return service.register_resources(values['root_path'],values.get('review_policy'))
  @app.get('/api/v1/resources/{rid}')

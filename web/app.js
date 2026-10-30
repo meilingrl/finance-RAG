@@ -116,7 +116,10 @@ Object.assign(reasonNames,{
  registered_local_model_missing:'当前资料包未关联 MiniLM。请使用 E1–E4 开发演示包，或改选 BM25',
  demo_assets_invalid_or_unapproved:'演示材料校验失败或审核尚未导入，请重新登记完整演示包并查看资源明细',
  inference_asset_changed:'材料文件已变化，请重新核验受影响的材料',
- local_model_projection_incomplete:'MiniLM 模型登记不完整，请重新登记完整资料包'
+ local_model_projection_incomplete:'MiniLM 模型登记不完整，请重新登记完整资料包',
+ model_catalog_unavailable:'无法从该地址读取模型列表，请核对地址与密钥权限',
+ model_catalog_empty:'该地址返回了空模型列表',
+ catalog_schema_error:'模型列表格式不符合预期'
 });
 Object.assign(reasonNames,{provider_capabilities_unverified:'正在准备模型文本、图像与并发能力检查',fixed_data_preparing:'正在自动准备固定资料，请稍候',fixed_data_unavailable:'固定资料下载未完成，请检查网络后重试',vision_check_failed:'模型图像检查未通过，请使用支持图像的模型',http_401:'密钥未被模型服务接受，请重新填写有效密钥',http_403:'当前密钥没有该模型的调用权限',http_404:'模型服务接口不存在，请核对服务地址',http_429:'模型服务限流，请稍后重试或降低并发',model_mismatch:'服务返回的模型与配置不一致，请核对模型名称',response_not_completed:'模型未完成本次回答，请提高输出上限后重试',transport_outcome_unknown:'模型服务连接中断或超时，请检查连接后重试'});
 function explain(x){
@@ -210,6 +213,22 @@ bind('check',async()=>{
   $('providerCheckStatus').textContent=text; $('providerCheckDetails').textContent=pretty(report);
   notice(text+(report.ready?' 配置检查通过。':' '+joinReasons(report.blocking_items)),report.ready?'ok':'warn');
  }finally{for(const id of controls)$(id).disabled=false;}
+});
+bind('fetchModels',async()=>{
+ // Reading the catalog needs a session key; save the typed one first, exactly like saveModel does.
+ if($('key').value.trim()){const result=await api('credentials/session',{api_key:$('key').value});credential=result.credential_ref;savedState?.saveCredential(session,credential);$('key').value='';$('key').placeholder='本次会话已保存密钥';}
+ if(!credential){notice('请先填写会话密钥，再检索模型。','warn');return;}
+ const endpoint=$('endpoint').value.trim();
+ if(!endpoint){notice('请先填写模型服务地址。','warn');return;}
+ $('fetchModels').disabled=true;
+ try{
+  const report=await api('model-catalog?endpoint='+encodeURIComponent(endpoint)+'&credential_ref='+encodeURIComponent(credential));
+  if(!report.models?.length){notice('未能从该地址读取模型列表：'+joinReasons(report.blocking_items||[]),'warn');$('providerCheckDetails').textContent=pretty(report);return;}
+  $('modelOptions').replaceChildren(...report.models.map(id=>el('option',{value:id})));
+  $('model').value=report.models[0];
+  notice(`已从 ${report.catalog_url} 读取 ${report.models.length} 个模型，主模型填入 ${report.models[0]}；请核对后保存。`,'ok');
+  $('providerCheckDetails').textContent=pretty(report);
+ }finally{$('fetchModels').disabled=false;}
 });
 for(const id of ['endpoint','model','secondary','concurrency','providerApiStyle','maxOutput','providerTimeout','reasoningEffort','responseFormat','providerStream'])$(id).addEventListener('input',()=>{experimentReady=false;preparedExperiment=null;$('experiment').disabled=true;$('providerCheckStatus').textContent='配置已修改，请保存并重新检查；单题演示仍使用串行。';});
 

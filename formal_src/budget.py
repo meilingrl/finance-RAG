@@ -1,6 +1,7 @@
 """Durable, nonrefundable shared attempt reservations, protected across processes."""
-import contextlib,fcntl,json,os,uuid
+import contextlib,json,os,uuid
 from pathlib import Path
+from app import fsutil
 from .recovery import atomic_bytes,append_plan,missing_suffix,_append_bytes
 
 class BudgetError(ValueError): pass
@@ -9,7 +10,7 @@ class BudgetError(ValueError): pass
 def locked(path):
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
  with path.with_name(path.name+'.lock').open('a') as lock:
-  fcntl.flock(lock,fcntl.LOCK_EX)
+  fsutil.acquire(lock)
   recover_append(path)
   yield path
 
@@ -33,7 +34,7 @@ def records(path):
  """Read a committed journal logically without changing the on-disk snapshot."""
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
  with path.with_name(path.name+'.lock').open('a') as lock:
-  fcntl.flock(lock,fcntl.LOCK_SH)
+  fsutil.acquire(lock,exclusive=False)
   data=path.read_bytes() if path.exists() else b'';journal=path.with_name(path.name+'.pending')
   if journal.exists():data+=missing_suffix(path,json.loads(journal.read_text()))
   return [json.loads(line) for line in data.splitlines() if line.strip()]

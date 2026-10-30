@@ -4,8 +4,34 @@ from pathlib import Path
 from uuid import uuid4
 from formal_src.contracts import RunRequest,ResolvedRunSpec,PreflightReport,RunResults,safe_json,identifier,ContractError
 from .jobs import JobStore,atomic,read,digest
+from . import fsutil
 from .resources import ResourceRegistry
 from .onboarding import CourseWorkflow
+
+
+def catalog_urls(endpoint):
+ """Model-list URLs derived from a complete model-service endpoint.
+
+ The application request path ends in ``/responses`` or ``/chat/completions``, so
+ the model catalog normally lives one level up. Users may also paste a base URL
+ or a versioned path; both are handled instead of rejected.
+ """
+ from formal_src.provider import normalize_endpoint
+ from urllib.parse import urlsplit,urlunsplit
+ complete=normalize_endpoint(endpoint)[0]
+ url=urlsplit(complete);path=url.path.rstrip('/')
+ suffix='/chat/completions' if path.endswith('/chat/completions') else '/responses'
+ if path.endswith(suffix):base=path[:-len(suffix)].rstrip('/')
+ else:base=path.rstrip('/')
+ candidates=[]
+ def add(value):
+  candidate=urlunsplit((url.scheme,url.netloc,value,'',''))
+  if candidate not in candidates:candidates.append(candidate)
+ add(base+'/models')
+ if not base.endswith('/v1'):add(base+'/v1/models')
+ return candidates
+
+
 class ApplicationService(CourseWorkflow):
  def __init__(self,project_root,workspace,*,worker_command=None,catalog_transport=None,provider_transport=None):
   self.catalog_transport=catalog_transport;self.provider_transport=provider_transport
@@ -94,7 +120,8 @@ class ApplicationService(CourseWorkflow):
     from scripts.llm_execution import NoRedirect
     with urllib.request.build_opener(NoRedirect()).open(req,timeout=settings.get('timeout_seconds',30)) as response:raw=json.load(response)
    ready=any(item.get('id')==config['model'] for item in raw.get('data',[]))
-   return {'ready':ready,'blocking_items':[] if ready else ['model_not_in_catalog'],'sent_attempts':0,'level':'catalog'}
+   models=[item['id'] for item in raw.get('data',[]) if isinstance(item,dict) and isinstance(item.get('id'),str) and item['id']]
+   return {'ready':ready,'blocking_items':[] if ready else ['model_not_in_catalog'],'sent_attempts':0,'level':'catalog','catalog_url':catalog,'models':models}
   from formal_src.budget import Budget
   payload=build_probe_payload(config,image_url=settings.get('_probe_image'),nonce=settings.get('_probe_marker','READY'))
   operation=str(uuid4());budget=Budget(self.workspace/'budget.jsonl',run_id=operation)
@@ -112,6 +139,29 @@ class ApplicationService(CourseWorkflow):
    return {'ready':False,'blocking_items':[code],'sent_attempts':1,'level':'generation','purpose':'operational_probe'}
   ready=result.get('status')=='answered' and result.get('parsed_answer')==settings.get('_probe_marker','READY')
   return {'ready':ready,'blocking_items':[] if ready else ['operational_marker_not_answered'],'sent_attempts':1,'level':'generation','purpose':'operational_probe','model':config['model'],'response_id':result.get('response_id')}
+ def available_models(self,endpoint,credential_ref):
+  """List the service's model IDs so the form can fill in a valid name."""
+  key=self.credentials.get(credential_ref)
+  if not key:return {'models':[],'catalog_url':None,'blocking_items':['credential_required']}
+  candidates=catalog_urls(endpoint)
+  errors=[]
+  for catalog in candidates:
+   try:
+    if self.catalog_transport:raw=self.catalog_transport(catalog,key,15)
+    else:
+     import urllib.request
+     from scripts.llm_execution import NoRedirect
+     request=urllib.request.Request(catalog,headers={'Authorization':'Bearer '+key,'User-Agent':'rag-pilot/1.0'})
+     with urllib.request.build_opener(NoRedirect()).open(request,timeout=15) as response:raw=json.load(response)
+   except Exception as exc:
+    code=getattr(exc,'code',None)
+    errors.append('http_'+str(code) if code else type(exc).__name__)
+    continue
+   rows=raw.get('data') if isinstance(raw,dict) else None
+   if not isinstance(rows,list):errors.append('catalog_schema_error');continue
+   models=[item['id'] for item in rows if isinstance(item,dict) and isinstance(item.get('id'),str) and item['id']]
+   return {'models':models,'catalog_url':catalog,'blocking_items':[] if models else ['model_catalog_empty']}
+  return {'models':[],'catalog_url':None,'blocking_items':['model_catalog_unavailable'],'attempts':len(candidates),'causes':errors}
  def parallel_verified(self,profile):
   from .provider_checks import parallel_verified
   return parallel_verified(self.workspace,profile)
@@ -324,7 +374,6 @@ class ApplicationService(CourseWorkflow):
   if state['state'] not in ('blocked','interrupted','failed','paused'):return {'items':[]}
   return {'items':issues(self.jobs.directory(run_id))}
  def resolve_attempt(self,run_id,values):
-  import fcntl
   from formal_src.recovery import resolve_failure
   values=self._clean(values)
   if set(values)!={'attempt_id','note','confirmed'}:raise ValueError('Invalid recovery fields')
@@ -333,7 +382,7 @@ class ApplicationService(CourseWorkflow):
    if state['state'] not in ('blocked','interrupted','paused','failed'):raise ValueError('Run must be stopped')
    d=self.jobs.directory(run_id)
    with (d/'worker.lock').open('a+') as owner:
-    try:fcntl.flock(owner,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    try:fsutil.acquire(owner,blocking=False)
     except BlockingIOError:raise ValueError('Worker still running') from None
     result=resolve_failure(d,values['attempt_id'],values['note'],values['confirmed'])
    # The audit entry is durable; resuming is a separate explicit action.
