@@ -130,10 +130,16 @@ node --test tests/web/*.cjs
 
 ## Windows 分支选择性集成（2026-10-30）
 
-- 基线 `58dbcd1`（最新 main），来源 `cab26b9`（windows-compat），共同祖先 `a0ba3b9`。在项目专属 `rag-pilot.worktrees/windows-integration`、`fix/windows-integration` 分支集成；原运行 checkout、服务、数据、历史结果及未提交文档修改均保持原位。该 worktree 当前用于合并验证。
+- 基线 `58dbcd1`（最新 main），来源 `cab26b9`（windows-compat），共同祖先 `a0ba3b9`。在项目专属 `rag-pilot.worktrees/windows-integration`、`fix/windows-integration` 分支集成；原运行 checkout、服务、数据、历史结果及未提交文档修改均保持原位。该 worktree 保留为本轮已验证源码对照。
 - 12 个来源文件中，保留跨平台文件锁、原子替换共享冲突重试、目录刷新降级、UTF-8 和 POSIX 清单路径修复。5 个文本冲突逐项解决；保留 main 的后台操作、事件增量缓存、错误诊断及 UI。未纳入与 Windows 无关的模型目录检索 API/UI，避免自动改写主模型和扩大本轮功能范围。
 - 修正来源实现的导入时无条件重启、仅 PID 的进程身份及 64 位 HANDLE 签名；使用同一进程句柄查询创建时间和退出状态，严格比较身份。POSIX 权限错误不重试；Windows 重试有界。诊断端点没有 `O_NOFOLLOW` 时保守返回空对象，不降低符号链接防护。
 - 进程 API 依据：[OpenProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess)、[WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject)；锁行为依据 [Python msvcrt](https://docs.python.org/3/library/msvcrt.html)。Windows 目录项掉电持久性不保证；HTTP 诊断查看存在上述平台限制。
 - 修改前基线：469 项，466 通过、3 跳过，251.995 秒。原前端 19 项全部通过（含 Chrome 场景），本次没有修改 web 文件。日志 `/tmp/finance-windows-baseline.log`、`/tmp/finance-windows-web.log` 为验证记录，已不用于运行。
 - 新增回归覆盖真实跨进程锁竞争/释放、并发预算追加、中文目录与内容、Windows 共享错误重试、进程创建时间/64 位句柄/退出、根目录模型清单、导入无重启及诊断安全降级。另设置 Windows/Linux 原生 CI 执行相关恢复和后台操作用例，不调用真实模型或下载课程数据。
-- 集成后的完整测试、原生 CI 与合并结果待下方补充；本轮没有新增真实实验成绩。旧运行必须继续使用原代码身份，不绕过冻结校验。
+- 原生 Windows 首轮暴露 CRT 文件读取只返回 `errno=13` 而无 `winerror` 的重试漏判，以及文本夹具 CRLF 与固定 LF 哈希不一致；分别补有限后备重试和二进制固定夹具。又以故障注入验证并修复 runner 控制文件读取的共享冲突处理。
+- 重复 CI 进一步发现原有 monitor 竞态：worker 在事件读取与退出检测之间追加最后事件，导致实际 `paused`、持久状态却为 `interrupted` 且 `in_flight_count=1`。原生诊断日志与确定性回归均复现；现确认进程退出后再读一次事件尾部，保留增量缓存和偏移，避免漏读或重复发送。没有通过放宽断言、增大等待或忽略失败来通过测试。
+- 代码 `ddd41c5` 的 [push CI](https://github.com/meilingrl/finance-RAG/actions/runs/41060775805) 与 [PR CI](https://github.com/meilingrl/finance-RAG/actions/runs/41060785303) 均通过：每组在原生 Windows 与 Ubuntu 上各运行 69 项回归及 20 项重复暂停/并发恢复测试。新增独立回归共15项；测试不依赖真实密钥、资料或模型。旧全量测试仍有 Unix fork、权限/符号链接等平台假设，不能将选定 Windows CI 称为全量 Windows 验收。
+- 独立只读审查已复核取舍、冲突解决、进程身份、重试边界与退出后事件读取，无未处理阻断项。Windows 目录项掉电持久性和 HTTP 诊断查看的限制仍存在；未执行真实外部模型或新增正式实验成绩。
+- 最终代码 `ddd41c5` 完整 macOS Python 回归：484 项，481 通过、3 跳过、0 失败，249.480 秒。命令 `PYTHONPATH=src:scripts:tests:. /Users/meilingluo/School/Courses/2026-Fall/NLP/rag-pilot/.venv-app/bin/python -m unittest discover -s tests -t .`；跳过为2项可选 pypdf 夹具和独立 checkout 未安装固定资料的1项真实主集准备回归。依赖弃用及旧 fork 警告仍存在。前端19项通过，JS语法和 Git 空白检查通过；web 与基线逐字节一致。
+- 集成入口：[PR #2](https://github.com/meilingrl/finance-RAG/pull/2)。保留来源分支的合并父关系；项目 worktree 保留为已验证源码对照，不替换旧实例，不清理分支或运行资产。原 checkout 只补充本轮验证入口，保留已有本地文档修改。旧运行必须继续使用原代码身份，不绕过冻结校验。
+- `/tmp/finance-windows-final-acceptance.log`、`/tmp/finance-windows-ci-drain-passed.log` 及本轮其他 `/tmp/finance-windows-*` 为已结束的测试/PR草稿记录，已不参与运行；完整结论与 CI 入口已记录于本节。中间失败不计作最终通过证据。
