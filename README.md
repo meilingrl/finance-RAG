@@ -8,6 +8,8 @@
 
 先读[详尽应用指南](docs/guides/APP_GUIDE.md)：包含无密钥最小命令、数据与模型准备、自动/人工审核区别、封存结果复核、网络恢复及异常对照表。没有原始资源或授权时，明确记录哪些检查已执行、哪一层验证受阻。
 
+软件版本与源码包见 [GitHub Releases](https://github.com/meilingrl/finance-RAG/releases/tag/v1.0.0)；安装要求与验证边界见[软件发布说明](docs/delivery/SOFTWARE_RELEASES.md)。固定课程数据使用独立版本 `fixed-data-v1`。
+
 ## 快速开始
 
 需要 Python 3.12。在仓库根目录执行：

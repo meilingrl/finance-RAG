@@ -1,5 +1,6 @@
-# 课程交付
+# 软件发布与课程交付
 
+- [软件发布说明](SOFTWARE_RELEASES.md)：源码版本、安装方式、验证范围与限制；软件发布不等同于课程提交验收。
 - `COURSE_SUBMISSION_MANIFEST.json`：课程导出白名单与必需文件。导出需要实际报告、AI使用声明、成员贡献声明及符合协议的封存评分结果。
 - `COURSE_README.md`：导出包根 README 模板；其中操作路径按包根目录解释。
 - [固定课程资源格式](fixed-dataset/BUNDLE_FORMAT.md)与[归属说明](fixed-dataset/ATTRIBUTION.md)：自动下载、SHA校验和离线安装的配套数据/模型包。
