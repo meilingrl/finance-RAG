@@ -139,6 +139,30 @@ for i in range(8): append(sys.argv[1], {'worker':sys.argv[2], 'item':i})
             self.assertTrue(failed)
             self.assertEqual(read(rd/'worker-result.json')['state'], 'paused')
 
+    def test_monitor_drains_events_written_between_read_and_process_exit(self):
+        import time
+        from app.service import ApplicationService
+        from app.jobs import atomic
+        from tests.app.test_service import request
+        with tempfile.TemporaryDirectory() as td:
+            service = ApplicationService(Path(td), Path(td)/'work')
+            rid = service.start_run(request())['run_id']; rd = service.jobs.directory(rid)
+            service.jobs.update(rid, state='running', in_flight_count=1)
+            events = rd/'worker-events.jsonl'
+            events.write_text(json.dumps({'event_type':'started','counts':{'in_flight_count':1}})+'\n', encoding='utf-8')
+            class Exiting:
+                def poll(self):
+                    with events.open('a',encoding='utf-8') as stream:
+                        stream.write(json.dumps({'event_type':'drained','counts':{'in_flight_count':0}})+'\n')
+                    atomic(rd/'worker-result.json', {'state':'paused','blocking_items':[]})
+                    return 0
+            service.jobs._monitor(rid, None, process=Exiting(), consumed=0)
+            deadline = time.monotonic()+5
+            while service.get_run(rid)['state']=='running' and time.monotonic()<deadline: time.sleep(.01)
+            self.assertEqual(service.get_run(rid)['state'], 'paused')
+            self.assertEqual(service.get_run(rid)['in_flight_count'], 0)
+            self.assertEqual(len(service.jobs.events(rid)), 2)
+
     def test_posix_permission_failure_is_not_retried(self):
         from app import fsutil
         calls = []

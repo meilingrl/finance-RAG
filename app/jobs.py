@@ -124,15 +124,18 @@ class JobStore:
      fsutil.acquire(lock)
     offset=len(self.events(run_id)) if consumed is None else consumed
     try:
+     alive=True
      while True:
       p=directory/'worker-events.jsonl'
       raw=fsutil.read_text(p) if p.exists() else ''
       lines=raw.splitlines() if raw.endswith('\n') else raw.splitlines()[:-1]
       for line in lines[offset:]:self.emit(run_id,json.loads(line));offset+=1
       atomic(directory/'heartbeat.json',{'pid':pid,'time':now()})
-      alive=process.poll() is None if process is not None else self._alive(pid,fingerprint)
+      # After observing exit, drain once more: the worker may have appended its
+      # final event between our previous read and poll(). No writer remains now.
       if not alive:break
-      time.sleep(.03)
+      alive=process.poll() is None if process is not None else self._alive(pid,fingerprint)
+      if alive:time.sleep(.03)
      result=read(directory/'worker-result.json',{})
      state=result.get('state','interrupted')
      if state not in ('completed','paused','cancelled','blocked','failed','interrupted'):state='failed'
