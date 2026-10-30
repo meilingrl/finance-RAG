@@ -247,7 +247,7 @@ def _run_owned(spec,emit,control,transport,rd):
  def finish(state,blocking=()):
   event('worker_stopped');value={'state':state,'blocking_items':list(blocking)};atomic(rd/'worker-result.json',value);return value
  def action():
-  result=control() if callable(control) else json.loads((rd/'control.json').read_text()).get('action') if (rd/'control.json').exists() else control.get('action','continue')
+  result=control() if callable(control) else json.loads(fsutil.read_text(rd/'control.json')).get('action') if (rd/'control.json').exists() else control.get('action','continue')
   if result not in {'continue','pause','cancel',None}:raise RunnerBlocked('invalid_control_action')
   return result
  try:

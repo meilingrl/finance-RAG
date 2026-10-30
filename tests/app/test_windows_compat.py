@@ -103,6 +103,42 @@ for i in range(8): append(sys.argv[1], {'worker':sys.argv[2], 'item':i})
             with self.assertRaises(PermissionError): fsutil.replace('a', 'b', attempts=3)
         self.assertEqual(len(calls), 3)
 
+    def test_runner_pause_survives_control_file_sharing_conflict(self):
+        from app import fsutil
+        from app.jobs import atomic
+        from formal_src.runner import run
+        from tests.formal.test_runner import demo_fixture
+        with tempfile.TemporaryDirectory() as td:
+            spec, rd = demo_fixture(Path(td)); atomic(rd/'control.json', {'action':'pause'})
+            original = type(rd).read_text; failed = []
+            def reading(path, *args, **kwargs):
+                if path.name == 'control.json' and not failed:
+                    failed.append(True); raise PermissionError(errno.EACCES, 'sharing')
+                return original(path, *args, **kwargs)
+            with patch.object(type(rd), 'read_text', reading), patch.object(fsutil, '_sharing_error', return_value=True):
+                result = run(spec, lambda event: None, {'run_dir':str(rd)}, run_dir=rd)
+            self.assertTrue(failed)
+            self.assertEqual(result['state'], 'paused')
+
+    def test_fixture_pause_survives_control_file_sharing_conflict(self):
+        import runpy
+        from app import fsutil
+        from app.jobs import atomic, read
+        with tempfile.TemporaryDirectory() as td:
+            rd = Path(td)
+            atomic(rd/'inputs.json', {'schema_version':1, 'resources':[]})
+            atomic(rd/'spec.json', {'resolved_config':{}})
+            atomic(rd/'control.json', {'action':'pause'})
+            original = type(rd).read_text; failed = []
+            def reading(path, *args, **kwargs):
+                if path.name == 'control.json' and not failed:
+                    failed.append(True); raise PermissionError(errno.EACCES, 'sharing')
+                return original(path, *args, **kwargs)
+            with patch.object(type(rd), 'read_text', reading), patch.object(fsutil, '_sharing_error', return_value=True), patch.object(sys, 'argv', ['fixtures.py','--run-dir',str(rd)]):
+                runpy.run_path(str(ROOT/'tests/app/fixtures.py'), run_name='__main__')
+            self.assertTrue(failed)
+            self.assertEqual(read(rd/'worker-result.json')['state'], 'paused')
+
     def test_posix_permission_failure_is_not_retried(self):
         from app import fsutil
         calls = []
