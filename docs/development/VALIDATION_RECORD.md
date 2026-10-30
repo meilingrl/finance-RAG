@@ -143,3 +143,7 @@ node --test tests/web/*.cjs
 - 最终代码 `ddd41c5` 完整 macOS Python 回归：484 项，481 通过、3 跳过、0 失败，249.480 秒。命令 `PYTHONPATH=src:scripts:tests:. /Users/meilingluo/School/Courses/2026-Fall/NLP/rag-pilot/.venv-app/bin/python -m unittest discover -s tests -t .`；跳过为2项可选 pypdf 夹具和独立 checkout 未安装固定资料的1项真实主集准备回归。依赖弃用及旧 fork 警告仍存在。前端19项通过，JS语法和 Git 空白检查通过；web 与基线逐字节一致。
 - 集成入口：[PR #2](https://github.com/meilingrl/finance-RAG/pull/2)。保留来源分支的合并父关系；项目 worktree 保留为已验证源码对照，不替换旧实例，不清理分支或运行资产。原 checkout 只补充本轮验证入口，保留已有本地文档修改。旧运行必须继续使用原代码身份，不绕过冻结校验。
 - `/tmp/finance-windows-final-acceptance.log`、`/tmp/finance-windows-ci-drain-passed.log` 及本轮其他 `/tmp/finance-windows-*` 为已结束的测试/PR草稿记录，已不参与运行；完整结论与 CI 入口已记录于本节。中间失败不计作最终通过证据。
+
+### 合并后测试同步修正（2026-10-30）
+
+`2f4e352` 的 [main CI](https://github.com/meilingrl/finance-RAG/actions/runs/41061745291) 捕获到凭据测试自身的退出同步竞态：它看到 completed 状态后立即遍历文件，而 monitor 线程仍在释放 Windows 强制字节锁。测试改为捕获并等待真实 monitor 线程退出，再验证实际 worker argv、环境与全部磁盘文件；未跳过锁文件、未放宽密钥泄漏断言，生产代码不变。本地相关29项通过（4.573秒）；CI 将凭据检查也加入10轮重复验证，形成每平台69项回归加30项重复测试，结果以该修复提交的检查为准。`/tmp/finance-windows-shutdown-local.log` 为已结束的测试记录。

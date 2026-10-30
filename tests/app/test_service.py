@@ -82,19 +82,25 @@ class ServiceTests(unittest.TestCase):
    (root/'data/input.json').write_text('tampered')
    self.assertIn('resource_sha_mismatch',s.control_run(rid,'resume')['blocking_items'])
  def test_credential_not_in_process_argv_or_disk(self):
-  import subprocess
+  import subprocess,threading
   from unittest.mock import patch
+  monitors=[];real_thread=threading.Thread
+  def monitor(*args,**kwargs):
+   thread=real_thread(*args,**kwargs);monitors.append(thread);return thread
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);s=setup(root);key='secret-value-987654321';ref=s.set_credential(key)
-   with patch('app.jobs.subprocess.Popen',wraps=subprocess.Popen) as launched:
+   with patch('app.jobs.subprocess.Popen',wraps=subprocess.Popen) as launched,patch('app.jobs.threading.Thread',side_effect=monitor):
     rid=s.start_run(request(),ref)['run_id']
+   # A terminal state is persisted before the monitor closes its mandatory Windows
+   # byte lock. Join the real thread before reading all files or removing the tree.
+   self.assertEqual(len(monitors),1)
+   for thread in monitors:
+    thread.join(timeout=10);self.assertFalse(thread.is_alive(),'monitor did not exit')
+   self.assertEqual(s.get_run(rid)['state'],'completed',worker_failure(s,rid))
    workers=[call for call in launched.call_args_list if '--run-dir' in call.args[0]]
    self.assertEqual(len(workers),1)
    self.assertNotIn(key,' '.join(workers[0].args[0]))
    self.assertEqual(workers[0].kwargs['env']['FORMAL_API_KEY'],key)
-   for _ in range(100):
-    if s.get_run(rid)['state']=='completed':break
-    time.sleep(.02)
    self.assertTrue(all(key not in p.read_text() for p in (root/'w').rglob('*') if p.is_file()))
  def test_preflight_budget_counts_unique_reservations(self):
   with tempfile.TemporaryDirectory() as td:
