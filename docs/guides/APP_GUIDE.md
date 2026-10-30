@@ -49,7 +49,17 @@ python3.12 -m venv .venv
 
 打开 `http://127.0.0.1:8765`。不带子命令启动会尝试打开系统浏览器；无桌面环境使用 `--no-browser`。可通过 `serve --port 8766 --no-browser` 换端口。服务只绑定本机回环地址；远程容器需由有权限的人设置端口转发，不要把访问不到远端的 `127.0.0.1` 当作应用未启动。
 
-当前代码使用 Unix `fcntl`。macOS 是已有实际验证平台；Linux 需检查 Python/依赖与 CPU 平台，最小容器还需系统命令 `ps`（通常来自 `procps`）。原生 Windows 不受支持，启动入口会明确提示而不是显示导入堆栈。Windows 用户可在 WSL 的 Linux shell 内克隆项目、准备 Python 3.12 和 `ps`，再执行上方 Unix 命令；请在 Linux 文件系统中创建虚拟环境，不复用 Windows/macOS 虚拟环境。本轮未做 WSL 整机验收。
+macOS/Linux 使用 `fcntl` 文件锁；原生 Windows 使用 `msvcrt` 字节范围锁，并以 PID 和进程创建时间识别运行进程。Linux 最小容器仍需 `ps`（通常来自 `procps`）。各平台请新建自己的虚拟环境，不复用其他系统的环境。Windows PowerShell：
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements/requirements-course.txt
+.\.venv\Scripts\python.exe scripts/course_entry.py --help
+.\.venv\Scripts\python.exe scripts/course_entry.py serve --no-browser
+```
+
+直接 CLI 启动会启用 Python UTF-8 模式，后台 worker 也使用 UTF-8。通过其他宿主导入 `build_app` 时，请用 `python -X utf8` 启动宿主；导入本身不会重启解释器。Windows 的目录 `fsync` 为显式降级：文件内容会刷新，但不据此保证断电后目录项持久性。缺少安全 no-follow 打开能力的平台（包括 Windows）暂不通过 HTTP 返回诊断内容，诊断文件仍保存在对应运行目录。平台测试范围见[验证记录](../development/VALIDATION_RECORD.md)，不把软件回归等同于真实模型/完整课程实验或 WSL 整机验收。
+
 
 平台锁定依赖位于 `requirements/`，优先按直接依赖清单安装。网络不可用时，请管理员提供与 Python 版本、CPU 架构匹配的离线 wheel 或已配环境；下载失败不是本地算法执行失败。不要混装 macOS、Linux x86_64、Linux aarch64 的锁文件。
 
@@ -191,7 +201,7 @@ CLI 输出任务状态 JSON；最终 `state=completed` 且退出码 0 表示该�
 | 现象或错误 | 常见原因 | 处理方式与结论边界 |
 | --- | --- | --- |
 | `ModuleNotFoundError: fastapi` / `uvicorn` / `fitz` | 使用了未装依赖的解释器 | 用 `.venv/bin/python -m pip ...` 安装并用同一解释器启动；记录依赖前提未满足 |
-| `fcntl` 不可用 / `ps` 不存在 | 平台或系统工具不满足 | 采用已支持的 Unix 环境、由管理员补齐系统工具；不要声称原生 Windows 已验证 |
+| 文件锁后端不可用 / Unix 下 `ps` 不存在 | Python 平台或系统工具不满足 | 使用标准 CPython 3.12；Unix 下补齐 `ps`，Windows 使用内置 `msvcrt` |
 | pip 下载超时、无可用 wheel、TLS 失败 | 网络、镜像、证书或平台版本问题 | 检查网络与架构，提供匹配的离线包/环境；不要随意取消版本固定或 TLS 校验 |
 | 资料状态连接暂时中断 | 状态请求失败，下载可能仍在后台继续 | 页面自动退避重连，也可点击“刷新资料状态”；不会重复提交实验 |
 | `fixed_data_conflict` / `fixed_data_permission_denied` | 已有资料校验失败或目录不可写 | 保留原资料；按提示核对固定版本或修复目录权限，不通过反复下载覆盖冲突目录 |

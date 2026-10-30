@@ -3,6 +3,7 @@ import json,sys
 from pathlib import Path
 from uuid import uuid4
 from formal_src.contracts import RunRequest,ResolvedRunSpec,PreflightReport,RunResults,safe_json,identifier,ContractError
+from . import fsutil
 from .jobs import JobStore,atomic,read,digest
 from .resources import ResourceRegistry
 from .onboarding import CourseWorkflow
@@ -324,7 +325,6 @@ class ApplicationService(CourseWorkflow):
   if state['state'] not in ('blocked','interrupted','failed','paused'):return {'items':[]}
   return {'items':issues(self.jobs.directory(run_id))}
  def resolve_attempt(self,run_id,values):
-  import fcntl
   from formal_src.recovery import resolve_failure
   values=self._clean(values)
   if set(values)!={'attempt_id','note','confirmed'}:raise ValueError('Invalid recovery fields')
@@ -333,7 +333,7 @@ class ApplicationService(CourseWorkflow):
    if state['state'] not in ('blocked','interrupted','paused','failed'):raise ValueError('Run must be stopped')
    d=self.jobs.directory(run_id)
    with (d/'worker.lock').open('a+') as owner:
-    try:fcntl.flock(owner,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    try:fsutil.acquire(owner,blocking=False)
     except BlockingIOError:raise ValueError('Worker still running') from None
     result=resolve_failure(d,values['attempt_id'],values['note'],values['confirmed'])
    # The audit entry is durable; resuming is a separate explicit action.

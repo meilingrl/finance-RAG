@@ -7,7 +7,7 @@ their answers and all input text stay out of the persistable evidence report.
 from collections import Counter, defaultdict
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from formal_src.contracts import relative, safe_json
 from formal_src.data_protocol import source_key
@@ -251,9 +251,12 @@ class _Qualification:
         if len(modules) != 1:
             self.block('inputs_complete', 'course_model_binding_incomplete')
             return
-        prefix = str(Path(modules[0]['path']).parent)
+        # Manifest bindings always use POSIX separators, so derive the prefix with
+        # PurePosixPath; Path would emit backslashes on Windows and never match.
+        prefix = PurePosixPath(modules[0]['path']).parent.as_posix()
         def bound(name):
-            binding = self.bindings.get(prefix + '/' + name)
+            key = name if prefix in ('', '.') else prefix + '/' + name
+            binding = self.bindings.get(key)
             return binding and binding['kind'] == 'model' and binding['absolute'].stat().st_size > 0
         if not all(bound(name) for name in ('config.json', 'tokenizer.json')) or not any(bound(name) for name in ('model.safetensors', 'pytorch_model.bin')):
             self.block('inputs_complete', 'course_model_binding_incomplete')
@@ -264,8 +267,10 @@ class _Qualification:
         for module in value:
             if not isinstance(module, dict) or not isinstance(module.get('type'), str):
                 self.block('inputs_complete', 'course_model_binding_incomplete')
-            elif module['type'].endswith('.Pooling') and not bound(module.get('path', '') + '/config.json'):
-                self.block('inputs_complete', 'course_model_binding_incomplete')
+            elif module['type'].endswith('.Pooling'):
+                folder = module.get('path', '')
+                if not isinstance(folder, str) or not bound(str(PurePosixPath(folder) / 'config.json')):
+                    self.block('inputs_complete', 'course_model_binding_incomplete')
 
     def evaluation(self, main):
         bindings = [r for r in self.bindings.values() if r['kind'] == 'evaluation']

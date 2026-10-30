@@ -126,3 +126,14 @@ node --test tests/web/*.cjs
 - 最终完整Python回归：469项，467通过、2跳过、0失败，357.960秒；沿用上述unittest命令。真实固定主集准备回归本轮已执行（模拟模型响应），只剩2项可选pypdf夹具跳过。依赖弃用与多线程fork警告仍存在。未验证真实外部模型、原生Windows或全浏览器兼容。
 
 - UI验收跟进：修复顶部两个链接按钮因32px点击区域与内部baseline对齐造成的文字偏高；统一内部垂直居中与20px行高，保留点击区域。Chrome实测各项文字中心差不超过0.5px，390px窄屏无横向溢出；截图 `artifacts/ui-review/header-aligned.png` 使用中。仅改CSS及样式缓存版本，未重跑后端测试。
+
+
+## Windows 分支选择性集成（2026-10-30）
+
+- 基线 `58dbcd1`（最新 main），来源 `cab26b9`（windows-compat），共同祖先 `a0ba3b9`。在项目专属 `rag-pilot.worktrees/windows-integration`、`fix/windows-integration` 分支集成；原运行 checkout、服务、数据、历史结果及未提交文档修改均保持原位。该 worktree 当前用于合并验证。
+- 12 个来源文件中，保留跨平台文件锁、原子替换共享冲突重试、目录刷新降级、UTF-8 和 POSIX 清单路径修复。5 个文本冲突逐项解决；保留 main 的后台操作、事件增量缓存、错误诊断及 UI。未纳入与 Windows 无关的模型目录检索 API/UI，避免自动改写主模型和扩大本轮功能范围。
+- 修正来源实现的导入时无条件重启、仅 PID 的进程身份及 64 位 HANDLE 签名；使用同一进程句柄查询创建时间和退出状态，严格比较身份。POSIX 权限错误不重试；Windows 重试有界。诊断端点没有 `O_NOFOLLOW` 时保守返回空对象，不降低符号链接防护。
+- 进程 API 依据：[OpenProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess)、[WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject)；锁行为依据 [Python msvcrt](https://docs.python.org/3/library/msvcrt.html)。Windows 目录项掉电持久性不保证；HTTP 诊断查看存在上述平台限制。
+- 修改前基线：469 项，466 通过、3 跳过，251.995 秒。原前端 19 项全部通过（含 Chrome 场景），本次没有修改 web 文件。日志 `/tmp/finance-windows-baseline.log`、`/tmp/finance-windows-web.log` 为验证记录，已不用于运行。
+- 新增回归覆盖真实跨进程锁竞争/释放、并发预算追加、中文目录与内容、Windows 共享错误重试、进程创建时间/64 位句柄/退出、根目录模型清单、导入无重启及诊断安全降级。另设置 Windows/Linux 原生 CI 执行相关恢复和后台操作用例，不调用真实模型或下载课程数据。
+- 集成后的完整测试、原生 CI 与合并结果待下方补充；本轮没有新增真实实验成绩。旧运行必须继续使用原代码身份，不绕过冻结校验。

@@ -1,5 +1,6 @@
 """Durable single-slot job persistence; workers never receive credentials in argv."""
-import contextlib,fcntl,hashlib,json,os,subprocess,threading,time
+import contextlib,hashlib,json,os,subprocess,threading,time
+from . import fsutil
 from pathlib import Path
 from datetime import datetime,timezone
 from uuid import uuid4
@@ -9,15 +10,13 @@ from formal_src.contracts import RunSnapshot,RunEvent,uuid
 
 def now(): return datetime.now(timezone.utc).isoformat()
 def digest(value): return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-def read(path,default=None): return json.loads(path.read_text()) if path.exists() else default
+def read(path,default=None): return json.loads(fsutil.read_text(path)) if path.exists() else default
 def atomic(path,value):
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
  tmp=path.with_name(path.name+'.'+str(uuid4())+'.tmp')
- with tmp.open('w') as f: json.dump(value,f,allow_nan=False);f.flush();os.fsync(f.fileno())
- os.replace(tmp,path)
- fd=os.open(str(path.parent),os.O_RDONLY)
- try:os.fsync(fd)
- finally:os.close(fd)
+ with tmp.open('w',encoding='utf-8') as f: json.dump(value,f,allow_nan=False);f.flush();os.fsync(f.fileno())
+ fsutil.replace(tmp,path)
+ fsutil.sync_directory(path.parent)
 class JobStore:
  def __init__(self,workspace):
   self.root=Path(workspace);self.root.mkdir(parents=True,exist_ok=True);self.runs=self.root/'runs';self.runs.mkdir(exist_ok=True);self._guard=threading.RLock();self._local=threading.local();self._event_cache=OrderedDict()
@@ -28,10 +27,10 @@ class JobStore:
     yield
     return
    with (self.root/'jobs.lock').open('a') as f:
-    fcntl.flock(f,fcntl.LOCK_EX);self._local.locked=True
+    fsutil.acquire(f);self._local.locked=True
     try: yield
     finally:
-     self._local.locked=False;fcntl.flock(f,fcntl.LOCK_UN)
+     self._local.locked=False;fsutil.release(f)
  def directory(self,run_id): uuid(run_id);return self.runs/run_id
  def get(self,run_id): return RunSnapshot.from_dict(read(self.directory(run_id)/'state.json'))
  def update(self,run_id,**values):
@@ -98,7 +97,7 @@ class JobStore:
     if target.exists() and digest(read(target))!=digest(inputs):return self.update(run_id,state='blocked',blocking_items=['inference_projection_changed'])
     if not target.exists():atomic(target,inputs)
    atomic(directory/'control.json',{'action':'continue'})
-   env=os.environ.copy()
+   env=os.environ.copy();env['PYTHONUTF8']='1'
    if secret: env['FORMAL_API_KEY']=secret
    else: env.pop('FORMAL_API_KEY',None)
    # A prior worker-result must never mark a resumed process complete.
@@ -119,15 +118,15 @@ class JobStore:
   def monitor():
    # Per-run monitor lock allows a restarted HTTP service to adopt its live worker.
    with (directory/'monitor.lock').open('a') as lock:
-    try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    try: fsutil.acquire(lock,blocking=False)
     except BlockingIOError:
      if process is None:return
-     fcntl.flock(lock,fcntl.LOCK_EX)
+     fsutil.acquire(lock)
     offset=len(self.events(run_id)) if consumed is None else consumed
     try:
      while True:
       p=directory/'worker-events.jsonl'
-      raw=p.read_text() if p.exists() else ''
+      raw=fsutil.read_text(p) if p.exists() else ''
       lines=raw.splitlines() if raw.endswith('\n') else raw.splitlines()[:-1]
       for line in lines[offset:]:self.emit(run_id,json.loads(line));offset+=1
       atomic(directory/'heartbeat.json',{'pid':pid,'time':now()})
@@ -149,8 +148,30 @@ class JobStore:
      self.update(run_id,state='failed',blocking_items=['invalid_worker_output'])
   threading.Thread(target=monitor,daemon=True).start()
  @staticmethod
+ def _windows_fingerprint(pid):
+  # One handle binds liveness and creation time to the same process instance.
+  import ctypes
+  from ctypes import wintypes
+  kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+  kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]
+  kernel.OpenProcess.restype=wintypes.HANDLE
+  kernel.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
+  kernel.WaitForSingleObject.restype=wintypes.DWORD
+  kernel.GetProcessTimes.argtypes=[wintypes.HANDLE]+[ctypes.POINTER(wintypes.FILETIME)]*4
+  kernel.GetProcessTimes.restype=wintypes.BOOL
+  kernel.CloseHandle.argtypes=[wintypes.HANDLE];kernel.CloseHandle.restype=wintypes.BOOL
+  handle=kernel.OpenProcess(0x1000|0x100000,False,int(pid))
+  if not handle:return None
+  try:
+   created,exited,system,user=(wintypes.FILETIME() for _ in range(4))
+   if not kernel.GetProcessTimes(handle,ctypes.byref(created),ctypes.byref(exited),ctypes.byref(system),ctypes.byref(user)):return None
+   if kernel.WaitForSingleObject(handle,0)!=258:return None
+   return f'windows:{pid}:{(created.dwHighDateTime<<32)|created.dwLowDateTime}'
+  finally:kernel.CloseHandle(handle)
+ @staticmethod
  def _fingerprint(pid):
   if not pid:return None
+  if os.name=='nt':return JobStore._windows_fingerprint(pid)
   try:
    value=subprocess.check_output(['ps','-p',str(pid),'-o','lstart='],stderr=subprocess.DEVNULL,timeout=2).strip()
    return hashlib.sha256(value).hexdigest() if value else None
@@ -159,6 +180,9 @@ class JobStore:
  def _alive(pid,fingerprint=None):
   try:
    if not pid:return False
+   if os.name=='nt':
+    current=JobStore._windows_fingerprint(pid)
+    return current is not None and (fingerprint is None or current==fingerprint)
    os.kill(pid,0);return fingerprint is None or JobStore._fingerprint(pid)==fingerprint
   except ProcessLookupError:return False
  def recover(self):

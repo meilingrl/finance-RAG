@@ -75,9 +75,15 @@ class ServiceTests(unittest.TestCase):
    self.assertIn('resource_sha_mismatch',s.control_run(rid,'resume')['blocking_items'])
  def test_credential_not_in_process_argv_or_disk(self):
   import subprocess
+  from unittest.mock import patch
   with tempfile.TemporaryDirectory() as td:
-   root=Path(td);s=setup(root);key='secret-value-987654321';ref=s.set_credential(key);rid=s.start_run(request(),ref)['run_id']
-   pid=json.loads((s.jobs.directory(rid)/'process.json').read_text())['pid'];args=subprocess.check_output(['ps','-p',str(pid),'-o','args='],text=True);self.assertNotIn(key,args)
+   root=Path(td);s=setup(root);key='secret-value-987654321';ref=s.set_credential(key)
+   with patch('app.jobs.subprocess.Popen',wraps=subprocess.Popen) as launched:
+    rid=s.start_run(request(),ref)['run_id']
+   workers=[call for call in launched.call_args_list if '--run-dir' in call.args[0]]
+   self.assertEqual(len(workers),1)
+   self.assertNotIn(key,' '.join(workers[0].args[0]))
+   self.assertEqual(workers[0].kwargs['env']['FORMAL_API_KEY'],key)
    for _ in range(100):
     if s.get_run(rid)['state']=='completed':break
     time.sleep(.02)

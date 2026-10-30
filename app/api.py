@@ -92,7 +92,7 @@ def create_app(service):
  def diagnostics(rid:str):
   import json,os,stat
   directory=service.jobs.directory(rid);path=directory/'diagnostics.json'
-  if directory.is_symlink():return {}
+  if directory.is_symlink() or not hasattr(os,'O_NOFOLLOW'):return {}
   try:
    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
    with os.fdopen(fd,'rb') as stream:

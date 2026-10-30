@@ -3,16 +3,15 @@ import base64,hashlib,json,os
 from pathlib import Path
 from uuid import uuid4
 from datetime import datetime,timezone
+from app import fsutil
 
 
 def atomic_bytes(path,data):
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
  tmp=path.with_name(path.name+'.'+str(uuid4())+'.tmp')
  with tmp.open('wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
- os.replace(tmp,path)
- fd=os.open(str(path.parent),os.O_RDONLY)
- try:os.fsync(fd)
- finally:os.close(fd)
+ fsutil.replace(tmp,path)
+ fsutil.sync_directory(path.parent)
 
 
 def _bytes(value):return json.dumps(value,sort_keys=True,allow_nan=False).encode()
