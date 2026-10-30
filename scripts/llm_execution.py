@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import fcntl
 import json
 import math
 import os
@@ -23,6 +22,8 @@ from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app import fsutil
 from ragpilot.common import digest, file_sha, now, read_json, read_jsonl, write_json, write_jsonl
 from ragpilot.inference import SYSTEM, common_text, selected_units
 from ragpilot.metrics import evaluate
@@ -332,7 +333,7 @@ def reserve_call(ledger, job, request, max_cost, max_calls):
             if priced else None)
     request_key = digest([job['config']['endpoint'], request['question_id'], request['request_hash']])
     with ledger.open('a+', encoding='utf-8') as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX)
+        fsutil.acquire(stream)
         stream.seek(0)
         records = [json.loads(line) for line in stream if line.strip()]
         if any(r['request_key'] == request_key for r in records):
@@ -364,7 +365,7 @@ def execute_job(folder, api_key, ledger, max_cost_usd, max_calls=200, transport=
     if max_cost_usd is not None and job['config']['input_usd_per_million'] is None:
         raise ValueError('Provider price is unknown; a USD cap would be misleading')
     with (folder / '.execution.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fsutil.acquire(lock, blocking=False)
         destination = folder / 'predictions.jsonl'
         predictions = read_jsonl(destination) if destination.exists() else []
         completed = {r['question_id'] for r in predictions}

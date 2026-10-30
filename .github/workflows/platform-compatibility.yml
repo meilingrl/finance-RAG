@@ -1,0 +1,47 @@
+name: Platform compatibility
+on:
+  push:
+    branches: [main, fix/windows-integration]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements/requirements-app.txt
+      - name: Native locks, recovery, UTF-8, readiness and background operations
+        run: >-
+          python -m unittest -v
+          tests.app.test_windows_compat
+          tests.app.test_jobs
+          tests.app.test_service
+          tests.app.test_operations
+          tests.app.test_usability
+          tests.app.test_course_readiness
+          tests.formal.test_recovery
+          tests.formal.test_runner.RunnerTests.test_demo_seals_and_resume_never_resends
+          tests.app.test_diagnostics.DiagnosticsTests.test_cli_starts_with_utf8_disabled_in_parent
+      - name: Repeat native pause and concurrent resume races
+        shell: python
+        run: |
+          import os, sys, unittest
+          sys.path.insert(0, os.getcwd())
+          names = [
+              'tests.app.test_service.ServiceTests.test_background_idempotency_pause_and_events',
+              'tests.app.test_service.ResumeIntegrityTests.test_concurrent_resume_launches_exactly_one_real_worker',
+          ]
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromNames(names) for _ in range(10))
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          sys.exit(not result.wasSuccessful())

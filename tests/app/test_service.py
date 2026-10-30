@@ -5,6 +5,14 @@ from fastapi.testclient import TestClient
 from app.service import ApplicationService
 from app.api import create_app
 
+def worker_failure(service,rid):
+ directory=service.jobs.directory(rid)
+ details={'state':dict(service.get_run(rid))}
+ for name in ('fixture-error.txt','diagnostics.json','worker-result.json'):
+  path=directory/name
+  if path.exists():details[name]=path.read_text(encoding='utf-8')
+ return str(details)
+
 def request(rid='demo',kind='prepare'):
  return dict(schema_version=1,client_request_id=str(uuid4()),kind=kind,profile_id='formal-v1',resource_set_id=rid,source_run_id=None,demo_input=None)
 def setup(root):
@@ -27,7 +35,7 @@ class ServiceTests(unittest.TestCase):
     r=s.get_run(rid)
     if r['state']=='paused':break
     time.sleep(.02)
-   self.assertEqual(r['state'],'paused');self.assertEqual(r['in_flight_count'],0)
+   self.assertEqual(r['state'],'paused',worker_failure(s,rid));self.assertEqual(r['in_flight_count'],0)
    e=s.list_events(rid);self.assertEqual([x['seq'] for x in e],[1,2]);self.assertEqual(len(s.list_events(rid,1)),1)
  def test_http_local_session(self):
   with tempfile.TemporaryDirectory() as td:
@@ -75,9 +83,15 @@ class ServiceTests(unittest.TestCase):
    self.assertIn('resource_sha_mismatch',s.control_run(rid,'resume')['blocking_items'])
  def test_credential_not_in_process_argv_or_disk(self):
   import subprocess
+  from unittest.mock import patch
   with tempfile.TemporaryDirectory() as td:
-   root=Path(td);s=setup(root);key='secret-value-987654321';ref=s.set_credential(key);rid=s.start_run(request(),ref)['run_id']
-   pid=json.loads((s.jobs.directory(rid)/'process.json').read_text())['pid'];args=subprocess.check_output(['ps','-p',str(pid),'-o','args='],text=True);self.assertNotIn(key,args)
+   root=Path(td);s=setup(root);key='secret-value-987654321';ref=s.set_credential(key)
+   with patch('app.jobs.subprocess.Popen',wraps=subprocess.Popen) as launched:
+    rid=s.start_run(request(),ref)['run_id']
+   workers=[call for call in launched.call_args_list if '--run-dir' in call.args[0]]
+   self.assertEqual(len(workers),1)
+   self.assertNotIn(key,' '.join(workers[0].args[0]))
+   self.assertEqual(workers[0].kwargs['env']['FORMAL_API_KEY'],key)
    for _ in range(100):
     if s.get_run(rid)['state']=='completed':break
     time.sleep(.02)
@@ -95,7 +109,7 @@ class ResumeIntegrityTests(unittest.TestCase):
    result=s.get_run(rid)
    if result['state'] in states:return result
    time.sleep(.01)
-  self.fail('worker did not reach expected state')
+  self.fail('worker did not reach expected state: '+worker_failure(s,rid))
  def test_resume_rechecks_budget_and_profile_readiness(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td);s=setup(root);(root/'w/budget.jsonl').write_text('broken\n');rid=s.start_run(request())['run_id']

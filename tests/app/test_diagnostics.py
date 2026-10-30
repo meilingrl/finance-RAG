@@ -27,21 +27,13 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertLess(len(raw.encode()),16384)
             self.assertEqual(path.stat().st_mode & 0o777,0o600)
 
-    def test_missing_unix_lock_reports_supported_platform_before_import_traceback(self):
-        code="""
-import builtins,runpy,sys
-original=builtins.__import__
-def importing(name,*args,**kwargs):
- if name=='fcntl':raise ModuleNotFoundError('fcntl')
- return original(name,*args,**kwargs)
-builtins.__import__=importing
-sys.argv=['course_entry.py','--help']
-runpy.run_path('scripts/course_entry.py',run_name='__main__')
-"""
-        result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,capture_output=True,text=True)
-        self.assertEqual(result.returncode,2)
-        self.assertIn('WSL',result.stderr)
-        self.assertNotIn('Traceback',result.stderr)
+    def test_cli_starts_with_utf8_disabled_in_parent(self):
+        import os
+        result=subprocess.run([sys.executable,'-X','utf8=0','scripts/course_entry.py','--help'],
+                              cwd=ROOT,env=dict(os.environ,PYTHONUTF8='0'),
+                              capture_output=True,text=True,timeout=15)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('Financial RAG',result.stdout)
 
     def test_launcher_import_failure_leaves_a_safe_diagnostic(self):
         with tempfile.TemporaryDirectory() as td:
